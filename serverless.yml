@@ -1,0 +1,23 @@
+org: anagotoyas
+app: voist
+service: voist-app
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  httpApi:
+   cors: true
+
+functions:
+  api:
+    handler: src/index.handler
+    events:
+      - httpApi:
+          path: /
+          method: ANY
+          cors: true # Habilita CORS para esta ruta
+      - httpApi:
+          path: /{proxy+}
+          method: ANY
+          cors: true # Habilita CORS para esta ruta
