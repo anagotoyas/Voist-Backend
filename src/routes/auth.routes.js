@@ -6,15 +6,15 @@ const { signinSchema, signupSchema } = require('../schemas/auth.schema')
 
 const router = Router();
 
-// Middleware para configurar encabezados CORS
-router.use((req, res, next) => {
-    // Configura los encabezados CORS
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Credentials', true);
+// // Middleware para configurar encabezados CORS
+// router.use((req, res, next) => {
+//     // Configura los encabezados CORS
+//     res.setHeader('Access-Control-Allow-Origin', '*');
+//     res.setHeader('Access-Control-Allow-Credentials', true);
   
-    // Continúa con el flujo de la solicitud
-    next();
-  });
+//     // Continúa con el flujo de la solicitud
+//     next();
+//   });
   
 
 

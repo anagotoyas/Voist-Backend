@@ -10,6 +10,7 @@ exports.isAuth = (req, res, next) => {
         if (err) return res.status(401).json({ message: "No estás autorizado" });
 
         req.userId = decoded.id;
+       
 
         next();
     });
