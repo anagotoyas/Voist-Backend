@@ -3,10 +3,11 @@ const fs = require("fs");
 const wav = require("wav");
 const path = require("path");
 const sdk = require("microsoft-cognitiveservices-speech-sdk");
+const WaveFile = require("wavefile").WaveFile;
 
 const getAllFiles = async (req, res, next) => {
   const result = await pool.query("SELECT * FROM file where user_id = $1", [
-    req.userId,
+    req.params.id,
   ]);
 
   return res.json(result.rows);
@@ -200,6 +201,28 @@ const saveAudioFile = (req, res) => {
   // Aquí puedes acceder al Blob de audio como un objeto Buffer:
   const audioBuffer = audioFile[0].buffer;
 
+  // Crea un objeto WaveFile desde el buffer del audio.
+  const waveFile = new WaveFile(audioBuffer);
+
+  const sampleRate = waveFile.fmt.sampleRate;
+  const chunkSize = waveFile.data.chunkSize;
+
+  // Obtiene la duración en segundos del archivo WAV.
+  const durationInSeconds =
+    chunkSize /
+    (((sampleRate * waveFile.fmt.bitsPerSample) / 8) *
+      waveFile.fmt.numChannels);
+
+  // Convierte a horas, minutos y segundos
+  const hours = Math.floor(durationInSeconds / 3600);
+  const minutes = Math.floor((durationInSeconds % 3600) / 60);
+  const seconds = Math.floor(durationInSeconds % 60);
+
+  // Formatea la duración en "hh:mm:ss"
+  const formattedDuration = `${hours.toString().padStart(2, "0")}:${minutes
+    .toString()
+    .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+
   // El resto de tu código para guardar el archivo debería permanecer igual
   const archivosDir = path.join("records");
   const fileName = `${id}.wav`;
@@ -213,34 +236,32 @@ const saveAudioFile = (req, res) => {
       res.status(500).send("Error al guardar el archivo WAV");
     } else {
       // console.log("Archivo WAV guardado exitosamente en:", filePath);
-      fromFile(filePath, res, id);
+      fromFile(filePath, res, id, formattedDuration);
       res.status(200).send("Archivo WAV guardado exitosamente");
     }
   });
 };
 
-const fromFile = async (wavFilePath, res, id) => {
+const fromFile = async (wavFilePath, res, id, durationInSeconds) => {
   const speechConfig = sdk.SpeechConfig.fromSubscription(
     "40f160f190fa418d82711ac6df2ab6ec",
     "eastus"
   );
   speechConfig.speechRecognitionLanguage = "es-ES";
 
-  
-
   let audioConfig = sdk.AudioConfig.fromWavFileInput(
     fs.readFileSync(wavFilePath)
   );
 
   let speechRecognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
-  
+
   speechRecognizer.recognizeOnceAsync(async (result) => {
     switch (result.reason) {
       case sdk.ResultReason.RecognizedSpeech:
         try {
           await pool.query(
-            "UPDATE file SET transcript = $1 WHERE id = $2 RETURNING *",
-            [result.text, id]
+            "UPDATE file SET transcript = $1, duration = $2 WHERE id = $3 RETURNING *",
+            [result.text, durationInSeconds, id]
           );
           console.log(result.text);
           res.status(200).json({
@@ -255,11 +276,12 @@ const fromFile = async (wavFilePath, res, id) => {
         res.status(500).json({
           message: "NOMATCH: Speech could not be recognized.",
         });
+        console.log("NOMATCH: Speech could not be recognized.");
 
         break;
       case sdk.ResultReason.Canceled:
         const cancellation = sdk.CancellationDetails.fromResult(result);
-      
+
         res.status(500).json({
           message: `CANCELED: Reason=${cancellation.reason}`,
         });

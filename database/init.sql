@@ -21,3 +21,5 @@ CREATE TABLE file (
 )
 
 alter table file add column transcript TEXT 
+alter table file add column date_created VARCHAR (8) DEFAULT TO_CHAR(CURRENT_DATE, 'DD/MM/YY')
+alter table file add column duration TEXT 

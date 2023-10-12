@@ -16,7 +16,7 @@ const {
 } = require("../controllers/file.controller");
 const { createFileSchema, updateFileSchema } = require("../schemas/file.schema");
 const { isAuth } =  require('../middlewares/auth.middleware')
-
+ 
 
 const router = Router();
 const upload = multer()
@@ -31,7 +31,7 @@ const upload = multer()
 //     next();
 //   });
 
-router.get('/all-files', getAllFiles)
+router.get('/all-files/:id', getAllFiles)
 
 router.get('/files/:id', getFile)
 
