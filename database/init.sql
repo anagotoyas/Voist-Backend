@@ -19,3 +19,5 @@ CREATE TABLE file (
    
     
 )
+
+alter table file add column transcript TEXT 

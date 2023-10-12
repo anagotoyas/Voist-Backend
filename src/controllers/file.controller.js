@@ -188,19 +188,20 @@ const setFilePath = async (req, res) => {
 };
 
 const saveAudioFile = (req, res) => {
-  const audioFile = req.files
-  id=req.params.id
-  
+  const audioFile = req.files;
+  id = req.params.id;
 
   if (!audioFile) {
-    return res.status(400).send('No se ha proporcionado ningún archivo de audio.');
+    return res
+      .status(400)
+      .send("No se ha proporcionado ningún archivo de audio.");
   }
- 
+
   // Aquí puedes acceder al Blob de audio como un objeto Buffer:
   const audioBuffer = audioFile[0].buffer;
 
   // El resto de tu código para guardar el archivo debería permanecer igual
-  const archivosDir = path.join('records');
+  const archivosDir = path.join("records");
   const fileName = `${id}.wav`;
   const filePath = path.join(archivosDir, fileName);
   // ...
@@ -212,56 +213,62 @@ const saveAudioFile = (req, res) => {
       res.status(500).send("Error al guardar el archivo WAV");
     } else {
       // console.log("Archivo WAV guardado exitosamente en:", filePath);
-      fromFile(filePath,res)
+      fromFile(filePath, res, id);
       res.status(200).send("Archivo WAV guardado exitosamente");
     }
   });
 };
 
-
-const fromFile = async (wavFilePath, res) => {
- 
-
+const fromFile = async (wavFilePath, res, id) => {
   const speechConfig = sdk.SpeechConfig.fromSubscription(
     "40f160f190fa418d82711ac6df2ab6ec",
     "eastus"
   );
   speechConfig.speechRecognitionLanguage = "es-ES";
 
-  console.log(wavFilePath);
+  
 
   let audioConfig = sdk.AudioConfig.fromWavFileInput(
     fs.readFileSync(wavFilePath)
   );
 
-  
-
   let speechRecognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
-  console.log(speechRecognizer);
-
-  speechRecognizer.recognizeOnceAsync((result) => {
+  
+  speechRecognizer.recognizeOnceAsync(async (result) => {
     switch (result.reason) {
       case sdk.ResultReason.RecognizedSpeech:
-        console.log(`RECOGNIZED: Text=${result.text}`);
-        // Puedes enviar el resultado como respuesta en JSON si lo deseas
-        res.json({
-          message: "Archivo WAV guardado con éxito",
-          recognitionResult: result.text,
-        });
+        try {
+          await pool.query(
+            "UPDATE file SET transcript = $1 WHERE id = $2 RETURNING *",
+            [result.text, id]
+          );
+          console.log(result.text);
+          res.status(200).json({
+            message: "Transcripción actualizada",
+          });
+        } catch (error) {
+          res.status(500);
+        }
+
         break;
       case sdk.ResultReason.NoMatch:
-        console.log("NOMATCH: Speech could not be recognized.");
+        res.status(500).json({
+          message: "NOMATCH: Speech could not be recognized.",
+        });
+
         break;
       case sdk.ResultReason.Canceled:
         const cancellation = sdk.CancellationDetails.fromResult(result);
-        console.log(`CANCELED: Reason=${cancellation.reason}`);
+      
+        res.status(500).json({
+          message: `CANCELED: Reason=${cancellation.reason}`,
+        });
 
         if (cancellation.reason == sdk.CancellationReason.Error) {
-          console.log(`CANCELED: ErrorCode=${cancellation.ErrorCode}`);
-          console.log(`CANCELED: ErrorDetails=${cancellation.errorDetails}`);
-          console.log(
-            "CANCELED: Did you set the speech resource key and region values?"
-          );
+          res.status(500).json({
+            errorCode: `CANCELED: ErrorCode=${cancellation.ErrorCode}`,
+            errorDetails: `CANCELED: ErrorDetails=${cancellation.errorDetails}`,
+          });
         }
         break;
     }
@@ -269,8 +276,6 @@ const fromFile = async (wavFilePath, res) => {
   });
 };
 
-
- 
 module.exports = {
   getAllFiles,
   getFile,
