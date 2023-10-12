@@ -2,6 +2,7 @@ const { pool } = require("../db");
 const fs = require("fs");
 const wav = require("wav");
 const path = require("path");
+const sdk = require("microsoft-cognitiveservices-speech-sdk");
 
 const getAllFiles = async (req, res, next) => {
   const result = await pool.query("SELECT * FROM file where user_id = $1", [
@@ -24,7 +25,6 @@ const getFile = async (req, res) => {
 
 const createFile = async (req, res, next) => {
   const { title } = req.body;
-  
 
   //db insert
   try {
@@ -187,50 +187,90 @@ const setFilePath = async (req, res) => {
   return res.json(updateResult.rows[0]);
 };
 
-const saveAudioBlobAsWAV = async (req, res) => {
-  const { audioData, name } = req.body;
-
-  if (!name) {
-    return res.status(400).json({ message: "Debe proporcionar un nombre de archivo" });
-  }
+const saveAudioFile = (req, res) => {
+  const audioFile = req.files
+  id=req.params.id
   
 
-  const fileName = `records/${name}.wav`; 
-
-  const binaryData = Buffer.from(audioData, "base64");
-
+  if (!audioFile) {
+    return res.status(400).send('No se ha proporcionado ningún archivo de audio.');
+  }
  
-  fs.mkdir(path.dirname(fileName), { recursive: true }, (err) => {
-    if (err) { 
-      console.error(err);
-      res.status(500).json({ message: "Error al crear el directorio" });
+  // Aquí puedes acceder al Blob de audio como un objeto Buffer:
+  const audioBuffer = audioFile[0].buffer;
+
+  // El resto de tu código para guardar el archivo debería permanecer igual
+  const archivosDir = path.join('records');
+  const fileName = `${id}.wav`;
+  const filePath = path.join(archivosDir, fileName);
+  // ...
+
+  // Guarda el archivo WAV en el servidor.
+  fs.writeFile(filePath, audioBuffer, (err) => {
+    if (err) {
+      // console.error("Error al guardar el archivo WAV:", err);
+      res.status(500).send("Error al guardar el archivo WAV");
     } else {
-      
-      fs.writeFile(fileName, binaryData, "binary", (err) => {
-        // console.log(binaryData)
-        if (err) {
-          console.error(err);
-          res.status(500).json({ message: "Error al guardar el archivo" });
-        } else {
-          res.json({ message: "Archivo WAV guardado con éxito" });
-        }
-      });
-    } 
+      // console.log("Archivo WAV guardado exitosamente en:", filePath);
+      fromFile(filePath,res)
+      res.status(200).send("Archivo WAV guardado exitosamente");
+    }
   });
 };
 
-const saveAudioFile = (req, res) => {
-  const formData = req.body; // Asegúrate de que req.body contenga el FormData
-  const audioBlob = formData.get("audioBlob");
-  if (!audioBlob) {
-    return res.status(400).send("Campo audioBlob no encontrado en el FormData");
-  }
 
-  const fileName = audioBlob.name;
-  console.log(fileName);
-  res.status(200).send("yup");
+const fromFile = async (wavFilePath, res) => {
+ 
+
+  const speechConfig = sdk.SpeechConfig.fromSubscription(
+    "40f160f190fa418d82711ac6df2ab6ec",
+    "eastus"
+  );
+  speechConfig.speechRecognitionLanguage = "es-ES";
+
+  console.log(wavFilePath);
+
+  let audioConfig = sdk.AudioConfig.fromWavFileInput(
+    fs.readFileSync(wavFilePath)
+  );
+
+  
+
+  let speechRecognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
+  console.log(speechRecognizer);
+
+  speechRecognizer.recognizeOnceAsync((result) => {
+    switch (result.reason) {
+      case sdk.ResultReason.RecognizedSpeech:
+        console.log(`RECOGNIZED: Text=${result.text}`);
+        // Puedes enviar el resultado como respuesta en JSON si lo deseas
+        res.json({
+          message: "Archivo WAV guardado con éxito",
+          recognitionResult: result.text,
+        });
+        break;
+      case sdk.ResultReason.NoMatch:
+        console.log("NOMATCH: Speech could not be recognized.");
+        break;
+      case sdk.ResultReason.Canceled:
+        const cancellation = sdk.CancellationDetails.fromResult(result);
+        console.log(`CANCELED: Reason=${cancellation.reason}`);
+
+        if (cancellation.reason == sdk.CancellationReason.Error) {
+          console.log(`CANCELED: ErrorCode=${cancellation.ErrorCode}`);
+          console.log(`CANCELED: ErrorDetails=${cancellation.errorDetails}`);
+          console.log(
+            "CANCELED: Did you set the speech resource key and region values?"
+          );
+        }
+        break;
+    }
+    speechRecognizer.close();
+  });
 };
 
+
+ 
 module.exports = {
   getAllFiles,
   getFile,
@@ -240,6 +280,5 @@ module.exports = {
   addAccessUser,
   removeAccessUser,
   setFilePath,
-  saveAudioBlobAsWAV,
   saveAudioFile,
 };

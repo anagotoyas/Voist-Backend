@@ -47,8 +47,8 @@ router.post('/remove-user', removeAccessUser);
 
 router.put('/set-file-path', setFilePath);
 
- router.post('/save-wav', upload.any(), saveAudioBlobAsWAV);
 
- router.post('/save-file',saveAudioFile);
+
+ router.post("/save-file/:id", upload.any(), saveAudioFile);
 
 module.exports = router;

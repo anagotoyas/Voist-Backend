@@ -4,6 +4,7 @@ const cookieParser = require('cookie-parser');
 const authRoutes = require("./routes/auth.routes")
 const fileRoutes = require("./routes/file.routes")
 const cors = require("cors");
+const bodyParser = require('body-parser');
 
 const corsOptions = {
   origin:["https://voist.netlify.app","http://localhost:5173"],
@@ -15,7 +16,8 @@ const app = express();
 
 app.use(cors(corsOptions));
 app.use(cookieParser());
-app.use(express.json())
+app.use(express.json({ limit: '100mb' }))
+app.use(bodyParser.raw({type:'audio/wav', limit: '100mb'}))
 app.use(express.urlencoded({ extended: false }))
 
 
