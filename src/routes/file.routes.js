@@ -4,6 +4,8 @@ const multer = require('multer');
 const { validateSchema } = require("../middlewares/validate.middleware");
 const {
   getAllFiles,
+  getAllFilesByFolder,
+  getAllFilesByKeyword,
   getFile,
   createFile,
   updateFile,
@@ -11,7 +13,6 @@ const {
   addAccessUser,
   removeAccessUser,
   setFilePath,
-  saveAudioBlobAsWAV,
   saveAudioFile
 } = require("../controllers/file.controller");
 const { createFileSchema, updateFileSchema } = require("../schemas/file.schema");
@@ -28,20 +29,24 @@ const upload = multer()
 //     res.setHeader('Access-Control-Allow-Credentials', true);
 
 //     // Continúa con el flujo de la solicitud
-//     next();
+//     next(); 
 //   });
 
 router.get('/all-files/:id', getAllFiles)
 
+router.get('/all-files/:id/:idFolder', getAllFilesByFolder)
+
+router.get('/all-files/:id/:keyword', getAllFilesByKeyword)
+
 router.get('/files/:id', getFile)
 
-router.post("/files",  isAuth, validateSchema(createFileSchema),createFile);
+router.post("/files/:id",createFile);
 
 router.put("/files/:id", validateSchema(updateFileSchema), updateFile);
 
 router.delete("/files/:id", deleteFile);
 
-router.post('/add-user', addAccessUser);
+router.post('/add-user', addAccessUser); 
 
 router.post('/remove-user', removeAccessUser);
 

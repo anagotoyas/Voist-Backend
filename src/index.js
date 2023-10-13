@@ -3,6 +3,7 @@ const express = require("express");
 const cookieParser = require('cookie-parser');
 const authRoutes = require("./routes/auth.routes")
 const fileRoutes = require("./routes/file.routes")
+const folderRoutes = require("./routes/folder.routes")
 const cors = require("cors");
 const bodyParser = require('body-parser');
 
@@ -28,7 +29,7 @@ app.get("/", (req, res, next) => {
     message: "Hello from root!",
   });
 });
-
+ 
 app.get("/path", (req, res, next) => {
   return res.status(200).json({
     message: "Hello from path!",
@@ -37,6 +38,7 @@ app.get("/path", (req, res, next) => {
 
 app.use('/api', authRoutes)
 app.use('/api', fileRoutes)
+app.use('/api', folderRoutes)
 
 
 

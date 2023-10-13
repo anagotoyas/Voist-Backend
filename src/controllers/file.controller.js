@@ -1,17 +1,43 @@
 const { pool } = require("../db");
 const fs = require("fs");
-const wav = require("wav");
 const path = require("path");
 const sdk = require("microsoft-cognitiveservices-speech-sdk");
 const WaveFile = require("wavefile").WaveFile;
 
 const getAllFiles = async (req, res, next) => {
-  const result = await pool.query("SELECT * FROM file where user_id = $1", [
-    req.params.id,
+  const result = await pool.query("SELECT * FROM file where user_id = $1 and folder_id IS NULL", [
+    req.params.id
   ]);
 
   return res.json(result.rows);
 };
+const getAllFilesByFolder = async (req, res, next) => {
+  const result = await pool.query("SELECT * FROM file where user_id = $1 and folder_id =$2", [
+    req.params.id, req.params.idFolder
+  ]);
+
+  return res.json(result.rows);
+};
+const getAllFilesByKeyword = async (req, res, next) => {
+  const searchKeyword = req.params.keyword; 
+  const userId = req.params.id;
+
+ 
+  const query = `
+    SELECT * FROM file
+    WHERE user_id = $1
+    AND folder_id IS NULL
+    AND title LIKE '%' || $2 || '%';
+  `;
+
+  try {
+    const result = await pool.query(query, [userId, searchKeyword]);
+    // El resultado de la consulta estará en "result.rows"
+    res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+}
 
 const getFile = async (req, res) => {
   const result = await pool.query("SELECT * FROM file where id=$1", [
@@ -26,12 +52,16 @@ const getFile = async (req, res) => {
 
 const createFile = async (req, res, next) => {
   const { title } = req.body;
+  const idFolder = req.body.idFolder
+
+  const folderValue = idFolder === null || idFolder === undefined ? null : idFolder;
+
 
   //db insert
   try {
     const result = await pool.query(
-      " INSERT INTO file (title, user_id) VALUES ($1, $2) RETURNING *",
-      [title, req.userId]
+      " INSERT INTO file (title, user_id, folder_id) VALUES ($1, $2, $3) RETURNING *",
+      [title, req.params.id, folderValue]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -262,8 +292,10 @@ const fromFile = async (wavFilePath, res, id, durationInSeconds) => {
           await pool.query(
             "UPDATE file SET transcript = $1, duration = $2 WHERE id = $3 RETURNING *",
             [result.text, durationInSeconds, id]
+            
           );
           console.log(result.text);
+          
           res.status(200).json({
             message: "Transcripción actualizada",
           });
@@ -276,7 +308,7 @@ const fromFile = async (wavFilePath, res, id, durationInSeconds) => {
         res.status(500).json({
           message: "NOMATCH: Speech could not be recognized.",
         });
-        console.log("NOMATCH: Speech could not be recognized.");
+        console.log("NOMATCH: Speech could not be recognized."); 
 
         break;
       case sdk.ResultReason.Canceled:
@@ -303,9 +335,11 @@ module.exports = {
   getFile,
   createFile,
   updateFile,
+  getAllFilesByFolder,
   deleteFile,
   addAccessUser,
   removeAccessUser,
   setFilePath,
   saveAudioFile,
+  getAllFilesByKeyword
 };

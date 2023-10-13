@@ -25,7 +25,7 @@ router.post('/signup',validateSchema(signupSchema), signup );
 
 router.post('/signout',signout );
 
-router.get('/profile', isAuth, profile);
+router.get('/profile/:id', profile);
 
 module.exports = router;
 
