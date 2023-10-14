@@ -265,7 +265,7 @@ const saveAudioFile = (req, res) => {
       // console.error("Error al guardar el archivo WAV:", err);
       res.status(500).send("Error al guardar el archivo WAV");
     } else {
-      // console.log("Archivo WAV guardado exitosamente en:", filePath);
+      // console.log("Archivo WAV guardado exitosamente en:", filePath); 
       fromFile(filePath, res, id, formattedDuration);
       res.status(200).send("Archivo WAV guardado exitosamente");
     }
@@ -275,7 +275,7 @@ const saveAudioFile = (req, res) => {
 const fromFile = async (wavFilePath, res, id, durationInSeconds) => {
   const speechConfig = sdk.SpeechConfig.fromSubscription(
     "40f160f190fa418d82711ac6df2ab6ec",
-    "eastus"
+    "eastus" 
   );
   speechConfig.speechRecognitionLanguage = "es-ES";
 
