@@ -8,7 +8,7 @@ const cors = require("cors");
 const bodyParser = require('body-parser');
 
 const corsOptions = {
-  origin:["https://voist.netlify.app","http://localhost:5173"],
+  origin:["https://voist.netlify.app","http://localhost:5173","https://voist.me"],
   credentials:true
 }
 

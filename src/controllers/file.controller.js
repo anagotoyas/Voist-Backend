@@ -237,35 +237,34 @@ const saveAudioFile = (req, res) => {
   const sampleRate = waveFile.fmt.sampleRate;
   const chunkSize = waveFile.data.chunkSize;
 
-  // Obtiene la duración en segundos del archivo WAV.
+ 
   const durationInSeconds =
     chunkSize /
     (((sampleRate * waveFile.fmt.bitsPerSample) / 8) *
       waveFile.fmt.numChannels);
 
-  // Convierte a horas, minutos y segundos
+
   const hours = Math.floor(durationInSeconds / 3600);
   const minutes = Math.floor((durationInSeconds % 3600) / 60);
   const seconds = Math.floor(durationInSeconds % 60);
 
-  // Formatea la duración en "hh:mm:ss"
+  
   const formattedDuration = `${hours.toString().padStart(2, "0")}:${minutes
     .toString()
     .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 
-  // El resto de tu código para guardar el archivo debería permanecer igual
+ 
   const archivosDir = path.join("records");
   const fileName = `${id}.wav`;
   const filePath = path.join(archivosDir, fileName);
-  // ...
+  
 
-  // Guarda el archivo WAV en el servidor.
   fs.writeFile(filePath, audioBuffer, (err) => {
     if (err) {
-      // console.error("Error al guardar el archivo WAV:", err);
+      
       res.status(500).send("Error al guardar el archivo WAV");
     } else {
-      // console.log("Archivo WAV guardado exitosamente en:", filePath); 
+    
       fromFile(filePath, res, id, formattedDuration);
       res.status(200).send("Archivo WAV guardado exitosamente");
     }
