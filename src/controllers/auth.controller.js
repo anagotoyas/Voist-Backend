@@ -70,7 +70,7 @@ const profile = async (req, res) => {
 
     return res.json(result.rows[0]);
 };
-
+//
 module.exports ={
     signin,
     signup,
