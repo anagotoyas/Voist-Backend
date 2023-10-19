@@ -34,3 +34,4 @@ CREATE TABLE folder (
 )
 
 alter table file add column folder_id INTEGER REFERENCES folder(id) ON DELETE CASCADE
+--comentario
