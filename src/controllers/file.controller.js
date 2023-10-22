@@ -3,31 +3,32 @@ const fs = require("fs");
 const path = require("path");
 const sdk = require("microsoft-cognitiveservices-speech-sdk");
 const WaveFile = require("wavefile").WaveFile;
-const aws = require('aws-sdk')
+const aws = require("aws-sdk");
 require("aws-sdk/lib/maintenance_mode_message").suppress = true;
-const dotenv = require('dotenv');
-dotenv.config()
+const dotenv = require("dotenv");
+dotenv.config();
 
-const region = process.env.AWS_REGION
-const bucketName = process.env.AWS_BUCKET_NAME
-const accessKeyId = process.env.AWS_ACCESS_KEY_ID
-const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY
+const region = process.env.AWS_REGION;
+const bucketName = process.env.AWS_BUCKET_NAME;
+const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
 
 const getAllFiles = async (req, res, next) => {
-  const result = await pool.query("SELECT * FROM file where user_id = $1 and folder_id IS NULL", [
-    req.userId
-  ]);
- 
+  const result = await pool.query(
+    "SELECT * FROM file where user_id = $1 and folder_id IS NULL",
+    [req.userId]
+  );
+
   return res.json(result.rows);
 };
 const getAllFilesByFolder = async (req, res, next) => {
-  const result = await pool.query("SELECT * FROM file where user_id = $1 and folder_id =$2", [
-    req.userId, req.params.idFolder
-  ]);
+  const result = await pool.query(
+    "SELECT * FROM file where user_id = $1 and folder_id =$2",
+    [req.userId, req.params.idFolder]
+  );
 
   return res.json(result.rows);
 };
-
 
 const getFile = async (req, res) => {
   const result = await pool.query("SELECT * FROM file where id=$1", [
@@ -42,10 +43,10 @@ const getFile = async (req, res) => {
 
 const createFile = async (req, res, next) => {
   const { title } = req.body;
-  const idFolder = req.body.idFolder
+  const idFolder = req.body.idFolder;
 
-  const folderValue = idFolder === null || idFolder === undefined ? null : idFolder;
-
+  const folderValue =
+    idFolder === null || idFolder === undefined ? null : idFolder;
 
   //db insert
   try {
@@ -218,32 +219,26 @@ const saveAudioFile = (req, res) => {
       .send("No se ha proporcionado ningún archivo de audio.");
   }
 
-  // Aquí puedes acceder al Blob de audio como un objeto Buffer:
   const audioBuffer = audioFile[0].buffer;
 
-  // Crea un objeto WaveFile desde el buffer del audio.
   const waveFile = new WaveFile(audioBuffer);
 
   const sampleRate = waveFile.fmt.sampleRate;
   const chunkSize = waveFile.data.chunkSize;
 
- 
   const durationInSeconds =
     chunkSize /
     (((sampleRate * waveFile.fmt.bitsPerSample) / 8) *
       waveFile.fmt.numChannels);
 
-
   const hours = Math.floor(durationInSeconds / 3600);
   const minutes = Math.floor((durationInSeconds % 3600) / 60);
   const seconds = Math.floor(durationInSeconds % 60);
 
-  
   const formattedDuration = `${hours.toString().padStart(2, "0")}:${minutes
     .toString()
     .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 
- 
   const archivosDir = path.join("records");
   const fileName = `${id}.wav`;
   const filePath = path.join(archivosDir, fileName);
@@ -252,53 +247,38 @@ const saveAudioFile = (req, res) => {
     region,
     accessKeyId,
     secretAccessKey,
-
-  })
-
-
-  const s3ObjectKey = `${id}.wav`;
+  });
 
   const params = {
-    Bucket: "voist-records", 
-    Key: s3ObjectKey,
+    Bucket: "voist-records",
+    Key: fileName,
     Body: audioBuffer,
   };
 
- 
-  s3.upload(params, (err, data) => {
+  fs.writeFile(filePath, audioBuffer, (err) => {
     if (err) {
-      console.error("Error al subir el archivo a S3:", err);
-      res.status(500).send("Error al guardar el archivo en S3");
+      console.log(filePath);
+      console.log(audioBuffer);
+      res.status(500).send("Error al guardar el archivo WAV");
     } else {
-      
-      const s3FileURL = data.Location;
-     
-      
-
-      fs.writeFile(filePath, audioBuffer, (err) => {
+      s3.upload(params, (err, data) => {
         if (err) {
-          
-          res.status(500).send("Error al guardar el archivo WAV");
+          console.error("Error al subir el archivo a S3:", err);
+          res.status(500).send("Error al guardar el archivo en S3");
         } else {
-        
-          fromFile(filePath, res, id, formattedDuration);
+           fromFile(filePath, res, id, formattedDuration);
           res.status(200).send("Archivo WAV guardado exitosamente");
         }
       });
-
-      
-      
     }
   });
-  
-
-  
 };
 
 const fromFile = async (wavFilePath, res, id, durationInSeconds) => {
+  console.log('from file')
   const speechConfig = sdk.SpeechConfig.fromSubscription(
     "40f160f190fa418d82711ac6df2ab6ec",
-    "eastus" 
+    "eastus"
   );
   speechConfig.speechRecognitionLanguage = "es-ES";
 
@@ -315,10 +295,8 @@ const fromFile = async (wavFilePath, res, id, durationInSeconds) => {
           await pool.query(
             "UPDATE file SET transcript = $1, duration = $2 WHERE id = $3 RETURNING *",
             [result.text, durationInSeconds, id]
-            
           );
-         
-          
+
           res.status(200).json({
             message: "Transcripción actualizada",
           });
@@ -331,7 +309,7 @@ const fromFile = async (wavFilePath, res, id, durationInSeconds) => {
         res.status(500).json({
           message: "NOMATCH: Speech could not be recognized.",
         });
-        console.log("NOMATCH: Speech could not be recognized."); 
+        console.log("NOMATCH: Speech could not be recognized.");
 
         break;
       case sdk.ResultReason.Canceled:
@@ -363,5 +341,5 @@ module.exports = {
   addAccessUser,
   removeAccessUser,
   setFilePath,
-  saveAudioFile
+  saveAudioFile,
 };
