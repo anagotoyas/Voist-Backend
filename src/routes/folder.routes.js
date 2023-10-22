@@ -10,6 +10,7 @@ const {
     deleteFolder,
 } = require("../controllers/folder.controller");
 const { createFolderSchema, updateFolderSchema } = require("../schemas/folder.schema");
+const { isAuth } =  require('../middlewares/auth.middleware')
 
 
 
