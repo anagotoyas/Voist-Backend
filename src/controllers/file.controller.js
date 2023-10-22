@@ -299,13 +299,7 @@ const fromFile = async (wavFilePath, res, id, durationInSeconds) => {
             "UPDATE file SET transcript = $1, duration = $2 WHERE id = $3 RETURNING *",
             [result.text, durationInSeconds, id]
           );
-          fs.unlink(wavFilePath, (unlinkErr) => {
-            if (unlinkErr) {
-              console.error("Error al borrar el archivo local:", unlinkErr);
-            } else {
-              console.log("Archivo local borrado con éxito");
-            }
-          });
+        
 
           res.status(200).json({
             message: "Transcripción actualizada",
