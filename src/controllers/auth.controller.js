@@ -66,7 +66,7 @@ const signout = (req, res) => {
 };
 
 const profile = async (req, res) => {
-    const result = await pool.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [req.userId]);
 
     return res.json(result.rows[0]);
 };
