@@ -4,6 +4,7 @@ const path = require("path");
 const sdk = require("microsoft-cognitiveservices-speech-sdk");
 const WaveFile = require("wavefile").WaveFile;
 const aws = require('aws-sdk')
+require("aws-sdk/lib/maintenance_mode_message").suppress = true;
 const dotenv = require('dotenv');
 dotenv.config()
 
@@ -263,7 +264,7 @@ const saveAudioFile = (req, res) => {
 
       s3.upload(
         {
-          Bucket: bucketName,
+          Bucket: "voist-records",
           Key: `audios/${fileName}`, 
           Body: fs.createReadStream(filePath),
         },
