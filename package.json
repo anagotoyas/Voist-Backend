@@ -3,11 +3,13 @@
   "version": "1.0.0",
   "description": "",
   "dependencies": {
+    "aws-sdk": "^2.1478.0",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",
     "buffer": "^6.0.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "file-type": "^18.5.0",
     "fs": "^0.0.1-security",

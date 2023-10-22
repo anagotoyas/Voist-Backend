@@ -3,6 +3,14 @@ const fs = require("fs");
 const path = require("path");
 const sdk = require("microsoft-cognitiveservices-speech-sdk");
 const WaveFile = require("wavefile").WaveFile;
+const aws = require('aws-sdk')
+const dotenv = require('dotenv');
+dotenv.config()
+
+const region = process.env.AWS_REGION
+const bucketName = process.env.AWS_BUCKET_NAME
+const accessKeyId = process.env.AWS_ACCESS_KEY_ID
+const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY
 
 const getAllFiles = async (req, res, next) => {
   const result = await pool.query("SELECT * FROM file where user_id = $1 and folder_id IS NULL", [
@@ -238,6 +246,13 @@ const saveAudioFile = (req, res) => {
   const archivosDir = path.join("records");
   const fileName = `${id}.wav`;
   const filePath = path.join(archivosDir, fileName);
+
+  const s3 = new aws.S3({
+    region,
+    accessKeyId,
+    secretAccessKey,
+
+  })
   
 
   fs.writeFile(filePath, audioBuffer, (err) => {
@@ -245,6 +260,25 @@ const saveAudioFile = (req, res) => {
       
       res.status(500).send("Error al guardar el archivo WAV");
     } else {
+
+      s3.upload(
+        {
+          Bucket: bucketName,
+          Key: `audios/${fileName}`, 
+          Body: fs.createReadStream(filePath),
+        },
+        (uploadErr, data) => {
+          if (uploadErr) {
+            res.status(500).send("Error al cargar el archivo WAV a S3");
+          } else {
+            
+            const s3Url = data.Location;
+            console.log(s3Url)
+            fromFile(filePath, res, id, formattedDuration);
+            res.status(200).send("Archivo WAV guardado exitosamente en S3");
+          }
+        }
+      );
     
       fromFile(filePath, res, id, formattedDuration);
       res.status(200).send("Archivo WAV guardado exitosamente");
