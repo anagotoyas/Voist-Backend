@@ -6,38 +6,19 @@ const WaveFile = require("wavefile").WaveFile;
 
 const getAllFiles = async (req, res, next) => {
   const result = await pool.query("SELECT * FROM file where user_id = $1 and folder_id IS NULL", [
-    req.params.id
+    req.userId
   ]);
-
+ 
   return res.json(result.rows);
 };
 const getAllFilesByFolder = async (req, res, next) => {
   const result = await pool.query("SELECT * FROM file where user_id = $1 and folder_id =$2", [
-    req.params.id, req.params.idFolder
+    req.userId, req.params.idFolder
   ]);
 
   return res.json(result.rows);
 };
-const getAllFilesByKeyword = async (req, res, next) => {
-  const searchKeyword = req.params.keyword; 
-  const userId = req.params.id;
 
- 
-  const query = `
-    SELECT * FROM file
-    WHERE user_id = $1
-    AND folder_id IS NULL
-    AND title LIKE '%' || $2 || '%';
-  `;
-
-  try {
-    const result = await pool.query(query, [userId, searchKeyword]);
-    // El resultado de la consulta estará en "result.rows"
-    res.json(result.rows);
-  } catch (error) {
-    next(error);
-  }
-}
 
 const getFile = async (req, res) => {
   const result = await pool.query("SELECT * FROM file where id=$1", [
@@ -61,7 +42,7 @@ const createFile = async (req, res, next) => {
   try {
     const result = await pool.query(
       " INSERT INTO file (title, user_id, folder_id) VALUES ($1, $2, $3) RETURNING *",
-      [title, req.params.id, folderValue]
+      [title, req.userId, folderValue]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -339,6 +320,5 @@ module.exports = {
   addAccessUser,
   removeAccessUser,
   setFilePath,
-  saveAudioFile,
-  getAllFilesByKeyword
+  saveAudioFile
 };

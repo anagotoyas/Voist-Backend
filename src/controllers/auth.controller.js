@@ -22,9 +22,9 @@ const signin = async (req, res) => {
     }
     const token = await createAccessToken({ id: result.rows[0].id });
     res.cookie('token', token, {
-        httpOnly: true,
-        // sameSite: 'none',
-        // secure: true,
+        // httpOnly: true,
+        sameSite: 'none',
+        secure: true,
         maxAge: 1000 * 60 * 60 * 24 // 1 day
     });
     return res.json(result.rows[0]);
@@ -43,9 +43,9 @@ const signup = async (req, res, next) => {
         const token = await createAccessToken({ id: result.rows[0].id });
 
         res.cookie('token', token, {
-            httpOnly: true,
-            // sameSite: 'none',
-            // secure: true,
+            // httpOnly: true,
+            sameSite: 'none',
+            secure: true,
             maxAge: 1000 * 60 * 60 * 24 // 1 day
         });
 

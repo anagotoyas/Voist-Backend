@@ -5,7 +5,6 @@ const { validateSchema } = require("../middlewares/validate.middleware");
 const {
   getAllFiles,
   getAllFilesByFolder,
-  getAllFilesByKeyword,
   getFile,
   createFile,
   updateFile,
@@ -32,15 +31,15 @@ const upload = multer()
 //     next(); 
 //   });
 
-router.get('/all-files/:id', getAllFiles)
+router.get('/all-files', isAuth, getAllFiles)
 
-router.get('/all-files/:id/:idFolder', getAllFilesByFolder)
+router.get('/all-files/:idFolder', isAuth, getAllFilesByFolder)
 
-router.get('/all-files/:id/:keyword', getAllFilesByKeyword)
+
 
 router.get('/files/:id', getFile)
 
-router.post("/files/:id",createFile);
+router.post("/files", isAuth, createFile);
 
 router.put("/files/:id", validateSchema(updateFileSchema), updateFile);
 

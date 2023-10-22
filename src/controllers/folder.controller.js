@@ -2,7 +2,7 @@ const { pool } = require("../db");
 
 const getAllFolders = async (req, res, next) => {
   const result = await pool.query("SELECT * FROM folder where user_id = $1", [
-    req.params.id,
+    req.userId,
   ]);
 
   return res.json(result.rows);
@@ -26,7 +26,7 @@ const createFolder = async (req, res, next) => {
   try {
     const result = await pool.query(
       " INSERT INTO folder (title, user_id) VALUES ($1, $2) RETURNING *",
-      [title, req.params.id]
+      [title, req.userId]
     );
     res.json(result.rows[0]);
   } catch (error) {

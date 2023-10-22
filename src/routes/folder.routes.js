@@ -16,11 +16,11 @@ const { createFolderSchema, updateFolderSchema } = require("../schemas/folder.sc
 const router = Router();
 
 
-router.get('/all-folders/:id', getAllFolders)
+router.get('/all-folders',isAuth, getAllFolders)
 
 router.get('/folders/:id', getFolder)
 
-router.post("/folders/:id", validateSchema(createFolderSchema),createFolder);
+router.post("/folders", isAuth, validateSchema(createFolderSchema),createFolder);
 
 router.put("/folders/:id", validateSchema(updateFolderSchema), updateFolder);
 
