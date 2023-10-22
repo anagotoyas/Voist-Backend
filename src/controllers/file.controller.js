@@ -1,4 +1,5 @@
 const { pool } = require("../db");
+const { PDFDocument, rgb, StandardFonts } = require("pdf-lib");
 const fs = require("fs");
 const path = require("path");
 const sdk = require("microsoft-cognitiveservices-speech-sdk");
@@ -249,9 +250,11 @@ const saveAudioFile = (req, res) => {
     secretAccessKey,
   });
 
+  const recordfileName = `audio/${id}.wav`;
+
   const params = {
     Bucket: "voist-records",
-    Key: fileName,
+    Key: recordfileName,
     Body: audioBuffer,
   };
 
@@ -266,7 +269,9 @@ const saveAudioFile = (req, res) => {
           console.error("Error al subir el archivo a S3:", err);
           res.status(500).send("Error al guardar el archivo en S3");
         } else {
-           fromFile(filePath, res, id, formattedDuration);
+          const wavURL = data.Location;
+          fromFile(filePath, res, id, formattedDuration, wavURL);
+
           res.status(200).send("Archivo WAV guardado exitosamente");
         }
       });
@@ -274,8 +279,14 @@ const saveAudioFile = (req, res) => {
   });
 };
 
-const fromFile = async (wavFilePath, res, id, durationInSeconds) => {
-  console.log('from file')
+const fromFile = async (
+  wavFilePath,
+  res,
+  idFile,
+  durationInSeconds,
+  wavURL
+) => {
+  console.log("from file");
   const speechConfig = sdk.SpeechConfig.fromSubscription(
     "40f160f190fa418d82711ac6df2ab6ec",
     "eastus"
@@ -292,10 +303,17 @@ const fromFile = async (wavFilePath, res, id, durationInSeconds) => {
     switch (result.reason) {
       case sdk.ResultReason.RecognizedSpeech:
         try {
-          await pool.query(
-            "UPDATE file SET transcript = $1, duration = $2 WHERE id = $3 RETURNING *",
-            [result.text, durationInSeconds, id]
-          );
+          const pdfURL = await createAndUploadPDF(result.text, idFile);
+
+
+          const query = `
+            UPDATE file 
+            SET transcript = $1, duration = $2, file_path = $3
+            WHERE id = $4
+            RETURNING *
+          `;
+
+          await pool.query(query, [pdfURL.toString(), durationInSeconds, wavURL.toString(), idFile]);
 
           res.status(200).json({
             message: "Transcripción actualizada",
@@ -303,7 +321,7 @@ const fromFile = async (wavFilePath, res, id, durationInSeconds) => {
         } catch (error) {
           res.status(500);
         }
-        //
+
         break;
       case sdk.ResultReason.NoMatch:
         res.status(500).json({
@@ -329,6 +347,62 @@ const fromFile = async (wavFilePath, res, id, durationInSeconds) => {
     }
     speechRecognizer.close();
   });
+};
+
+const createAndUploadPDF = async (content, id) => {
+  const pageWidth = 595;
+  const pageHeight = 842;
+
+  const pdfDoc = await PDFDocument.create();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+  const margin = 50;
+  let currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
+  let y = pageHeight - margin;
+
+  const lines = content.split("\n");
+
+  for (const line of lines) {
+    if (y - 20 < margin) {
+      // Cambia a una nueva página cuando el espacio se agota
+      currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
+      y = pageHeight - margin;
+    }
+
+    currentPage.drawText(line, {
+      x: margin,
+      y,
+      size: 12,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    y -= 20; // Espaciado entre líneas
+  }
+
+  const fileName = `transcripts/${id}.pdf`;
+
+  const pdfBytes = await pdfDoc.save();
+
+  const s3 = new aws.S3({
+    region,
+    accessKeyId,
+    secretAccessKey,
+  });
+
+  const params = {
+    Bucket: "voist-records",
+    Key: fileName,
+    Body: pdfBytes,
+    ContentType: "application/pdf",
+  };
+
+  try {
+    const result = await s3.upload(params).promise();
+    return result.Location;
+  } catch (error) {
+    console.error("Error al subir el PDF a S3:", error);
+  }
 };
 
 module.exports = {

@@ -35,3 +35,5 @@ CREATE TABLE folder (
 
 alter table file add column folder_id INTEGER REFERENCES folder(id) ON DELETE CASCADE
 --comentario
+
+ALTER TABLE public.file ALTER COLUMN file_path TYPE text USING file_path::text;
