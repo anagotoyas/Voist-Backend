@@ -408,9 +408,19 @@ const fromFile = async (
         idFile,
       ]);
 
+      fs.unlink(wavFilePath, (err) => {
+        console.log(wavFilePath);
+        if (err) {
+          console.error(`Error al eliminar el archivo: ${err}`);
+        } else {
+          console.log(`Archivo eliminado: ${wavFilePath}`);
+        }
+      });
+
       res.status(200).json({
         message: "Transcripción actualizada",
       });
+      
     } catch (error) {
       res.status(500);
     }
