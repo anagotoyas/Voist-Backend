@@ -1,6 +1,7 @@
 const { pool } = require("../db");
 const { PDFDocument, rgb, StandardFonts } = require("pdf-lib");
 const fs = require("fs");
+const multer = require("multer");
 const path = require("path");
 const sdk = require("microsoft-cognitiveservices-speech-sdk");
 const WaveFile = require("wavefile").WaveFile;
@@ -279,6 +280,57 @@ const saveAudioFile = (req, res) => {
   });
 };
 
+// function speechRecognizeContinuousFromFile(audioFilePath) {
+
+//   const audioConfig = sdk.AudioConfig.fromWavFileInput(fs.readFileSync(audioFilePath));
+//   console.log(audioFilePath)
+//   console.log(audioConfig)
+//   const speechConfig = sdk.SpeechConfig.fromSubscription('40f160f190fa418d82711ac6df2ab6ec', 'eastus');
+//   speechConfig.speechRecognitionLanguage = "es-ES";
+//   const recognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
+
+//   console.log('vamonos')
+
+//   let recognizedText = '';
+
+//   recognizer.recognizing = (s, e) => {
+//     console.log(`RECOGNIZING: ${e.result.text}`);
+//   };
+
+//   recognizer.recognized = (s, e) => {
+//     if (e.result.reason === sdk.ResultReason.RecognizedSpeech) {
+//       recognizedText += e.result.text + ' ';
+//       console.log(`RECOGNIZED: ${e.result.text}`);
+//     } else if (e.result.reason === sdk.ResultReason.NoMatch) {
+//       console.log("No se encontró ninguna coincidencia.");
+//     }
+//   };
+
+//   recognizer.canceled = (s, e) => {
+//     console.log(`CANCELED: Reason=${e.reason}`);
+
+//     if (e.reason === sdk.CancellationReason.Error) {
+//       console.log(`CANCELED: ErrorCode=${e.errorCode}`);
+//       console.log(`CANCELED: ErrorDetails=${e.errorDetails}`);
+//     }
+
+//     recognizer.stopContinuousRecognitionAsync(() => {
+//       console.log('Fin de la transcripcion')
+//       // Imprime el texto reconocido después de detener la transcripción
+//       console.log("Texto reconocido: " + recognizedText);
+//     });
+//   };
+
+//   recognizer.startContinuousRecognitionAsync();
+
+//   console.log("Reconocimiento de voz continuo iniciado. Presiona Ctrl+C para detener.");
+
+//   // Mantén la aplicación en funcionamiento
+//   process.stdin.resume();
+// }
+
+// speechRecognizeContinuousFromFile('records/audio-youtube.wav');
+
 const fromFile = async (
   wavFilePath,
   res,
@@ -286,72 +338,94 @@ const fromFile = async (
   durationInSeconds,
   wavURL
 ) => {
-  console.log("from file");
+  const audioConfig = sdk.AudioConfig.fromWavFileInput(
+    fs.readFileSync(wavFilePath)
+  );
+  console.log(wavFilePath);
+  console.log(audioConfig);
+
   const speechConfig = sdk.SpeechConfig.fromSubscription(
     "40f160f190fa418d82711ac6df2ab6ec",
     "eastus"
   );
   speechConfig.speechRecognitionLanguage = "es-ES";
+  const recognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
 
-  let audioConfig = sdk.AudioConfig.fromWavFileInput(
-    fs.readFileSync(wavFilePath)
-  );
+  console.log("Comenzando reconocimiento continuo");
 
-  let speechRecognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
+  let recognizedText = "";
 
-  speechRecognizer.recognizeOnceAsync(async (result) => {
-    switch (result.reason) {
-      case sdk.ResultReason.RecognizedSpeech:
-        try {
-          const pdfURL = await createAndUploadPDF(result.text, idFile);
+  recognizer.recognizing = (s, e) => {
+    console.log(`RECONOCIENDO: ${e.result.text}`);
+  };
 
-
-          const query = `
-            UPDATE file 
-            SET transcript = $1, duration = $2, file_path = $3
-            WHERE id = $4
-            RETURNING *
-          `;
-
-          await pool.query(query, [pdfURL.toString(), durationInSeconds, wavURL.toString(), idFile]);
-
-          res.status(200).json({
-            message: "Transcripción actualizada",
-          });
-        } catch (error) {
-          res.status(500);
-        }
-
-        break;
-      case sdk.ResultReason.NoMatch:
-        res.status(500).json({
-          message: "NOMATCH: Speech could not be recognized.",
-        });
-        console.log("NOMATCH: Speech could not be recognized.");
-
-        break;
-      case sdk.ResultReason.Canceled:
-        const cancellation = sdk.CancellationDetails.fromResult(result);
-
-        res.status(500).json({
-          message: `CANCELED: Reason=${cancellation.reason}`,
-        });
-
-        if (cancellation.reason == sdk.CancellationReason.Error) {
-          res.status(500).json({
-            errorCode: `CANCELED: ErrorCode=${cancellation.ErrorCode}`,
-            errorDetails: `CANCELED: ErrorDetails=${cancellation.errorDetails}`,
-          });
-        }
-        break;
+  recognizer.recognized = async (s, e) => {
+    if (e.result.reason === sdk.ResultReason.RecognizedSpeech) {
+      recognizedText += e.result.text + " ";
+      console.log(`RECONOCIDO: ${e.result.text}`);
+    } else if (e.result.reason === sdk.ResultReason.NoMatch) {
+      console.log("No se encontró ninguna coincidencia.");
+      res.status(500).json({
+        message: "NOMATCH: No se pudo reconocer el discurso.",
+      });
     }
-    speechRecognizer.close();
-  });
+  };
+
+  recognizer.canceled = (s, e) => {
+    console.log(`CANCELED: Reason=${e.reason}`);
+
+    if (e.reason == sdk.CancellationReason.Error) {
+      console.log(`CANCELED: ErrorCode=${e.errorCode}`);
+      console.log(`CANCELED: ErrorDetails=${e.errorDetails}`);
+      console.log("CANCELED: Did you update the subscription info?");
+    }
+
+    recognizer.stopContinuousRecognitionAsync();
+  };
+
+  recognizer.sessionStarted = (s, e) => {
+    console.log("\n    Session started event.");
+  };
+
+  recognizer.sessionStopped = async (s, e) => {
+    console.log("\n    Session stopped event.");
+    console.log("\n    Stop recognition.");
+    // console.log("Texto reconocido: " + recognizedText);
+    try {
+      const pdfURL = await createAndUploadPDF(recognizedText, idFile);
+
+      const query = `
+          UPDATE file 
+          SET transcript = $1, duration = $2, file_path = $3
+          WHERE id = $4
+          RETURNING *
+        `;
+
+      await pool.query(query, [
+        pdfURL.toString(),
+        durationInSeconds,
+        wavURL.toString(),
+        idFile,
+      ]);
+
+      res.status(200).json({
+        message: "Transcripción actualizada",
+      });
+    } catch (error) {
+      res.status(500);
+    }
+    recognizer.stopContinuousRecognitionAsync();
+  };
+
+  recognizer.startContinuousRecognitionAsync();
 };
 
 const createAndUploadPDF = async (content, id) => {
+  
   const pageWidth = 595;
   const pageHeight = 842;
+  
+  const lineHeight = 20;
 
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -360,24 +434,41 @@ const createAndUploadPDF = async (content, id) => {
   let currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
   let y = pageHeight - margin;
 
-  const lines = content.split("\n");
+  const words = content.split(' ');
+  let line = '';
 
-  for (const line of lines) {
-    if (y - 20 < margin) {
-      // Cambia a una nueva página cuando el espacio se agota
-      currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
-      y = pageHeight - margin;
+  for (const word of words) {
+    const currentLine = line + (line ? ' ' : '') + word;
+    const textSize = font.widthOfTextAtSize(currentLine, 12);
+
+    if (textSize > pageWidth - 2 * margin) {
+      // La palabra no cabe en la línea actual, entonces agrega la línea actual al PDF
+      currentPage.drawText(line, {
+        x: margin,
+        y,
+        size: 12,
+        color: rgb(0, 0, 0),
+      });
+      y -= lineHeight;
+
+      if (y - lineHeight < margin) {
+        // Cambia a una nueva página cuando el espacio se agota
+        currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
+        y = pageHeight - margin;
+      }
+
+      line = word;
+    } else {
+      line = currentLine;
     }
-
+  }
+  if (line) {
     currentPage.drawText(line, {
       x: margin,
       y,
       size: 12,
-      font,
       color: rgb(0, 0, 0),
     });
-
-    y -= 20; // Espaciado entre líneas
   }
 
   const fileName = `transcripts/${id}.pdf`;
@@ -398,12 +489,16 @@ const createAndUploadPDF = async (content, id) => {
   };
 
   try {
+    
     const result = await s3.upload(params).promise();
     return result.Location;
   } catch (error) {
     console.error("Error al subir el PDF a S3:", error);
   }
 };
+
+
+
 
 module.exports = {
   getAllFiles,
@@ -416,4 +511,5 @@ module.exports = {
   removeAccessUser,
   setFilePath,
   saveAudioFile,
+  
 };

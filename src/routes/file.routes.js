@@ -12,7 +12,8 @@ const {
   addAccessUser,
   removeAccessUser,
   setFilePath,
-  saveAudioFile
+  saveAudioFile,
+  uploadAudio
 } = require("../controllers/file.controller");
 const { createFileSchema, updateFileSchema } = require("../schemas/file.schema");
 const { isAuth } =  require('../middlewares/auth.middleware')
@@ -52,7 +53,8 @@ router.post('/remove-user', removeAccessUser);
 router.put('/set-file-path', setFilePath);
 
 
-
  router.post("/save-file/:id", upload.any(), saveAudioFile);
+
+
 
 module.exports = router;
