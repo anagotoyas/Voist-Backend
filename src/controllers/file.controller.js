@@ -261,8 +261,8 @@ const saveAudioFile = (req, res) => {
 
   fs.writeFile(filePath, audioBuffer, (err) => {
     if (err) {
-      console.log(filePath);
-      console.log(audioBuffer);
+     
+      console.log('error al guardar el archivo: '+err);
       res.status(500).send("Error al guardar el archivo WAV");
     } else {
       s3.upload(params, (err, data) => {
