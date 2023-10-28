@@ -67,11 +67,13 @@ const createFile = async (req, res, next) => {
 
 const updateFile = async (req, res) => {
   const { title } = req.body;
-
+  
   const result = await pool.query(
-    "UPDATE file SET title=$1 WHERE id=$2 RETURNING *",
+    "UPDATE file SET title=$1, updated_at=now() WHERE id=$2 RETURNING *",
     [title, req.params.id]
   );
+
+  
 
   if (result.rowCount === 0) {
     return res.status(404).json({ message: "No existe el archivo con ese id" });
@@ -452,7 +454,7 @@ const createAndUploadPDF = async (content, id) => {
     const textSize = font.widthOfTextAtSize(currentLine, 12);
 
     if (textSize > pageWidth - 2 * margin) {
-      // La palabra no cabe en la línea actual, entonces agrega la línea actual al PDF
+     
       currentPage.drawText(line, {
         x: margin,
         y,
@@ -462,7 +464,7 @@ const createAndUploadPDF = async (content, id) => {
       y -= lineHeight;
 
       if (y - lineHeight < margin) {
-        // Cambia a una nueva página cuando el espacio se agota
+      
         currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
         y = pageHeight - margin;
       }

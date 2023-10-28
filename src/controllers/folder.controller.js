@@ -41,7 +41,7 @@ const updateFolder = async (req, res) => {
   const { title } = req.body;
 
   const result = await pool.query(
-    "UPDATE folder SET title=$1 WHERE id=$2 RETURNING *",
+    "UPDATE folder SET title=$1, updated_at=now() WHERE id=$2 RETURNING *",
     [title, req.params.id]
   );
 
@@ -91,3 +91,4 @@ module.exports = {
   updateFolder,
   deleteFolder,
 };
+ 
