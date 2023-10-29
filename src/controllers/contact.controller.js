@@ -80,8 +80,30 @@ const deleteContact = async (req, res, next) => {
   }
 };
 
+const getUsersWithContactStatus = async (req, res, next) => {
+  try {
+    const userId = req.params.userId; 
+
+   
+    const query = `
+      SELECT users.id, users.name, users.email, users.gravatar,
+             (contact.id IS NOT NULL) AS is_contact
+      FROM users
+      LEFT JOIN contact ON (users.id = contact.contact_id AND contact.owner_id = $1)
+    `;
+
+    const result = await pool.query(query, [userId]);
+
+    res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 module.exports = {
   getContactList,
   addContact,
   deleteContact,
+  getUsersWithContactStatus
 };
