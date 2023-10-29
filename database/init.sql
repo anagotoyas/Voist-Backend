@@ -37,3 +37,21 @@ alter table file add column folder_id INTEGER REFERENCES folder(id) ON DELETE CA
 --comentario
 
 ALTER TABLE public.file ALTER COLUMN file_path TYPE text USING file_path::text;
+
+CREATE TABLE folder (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR (255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    date_created VARCHAR (8) DEFAULT TO_CHAR(CURRENT_DATE, 'DD/MM/YY')
+    
+)
+
+CREATE TABLE contact (
+    id serial PRIMARY KEY,
+    owner_id integer REFERENCES users(id),
+    contact_id integer REFERENCES users(id)
+    
+)
+

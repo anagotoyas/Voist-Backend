@@ -4,6 +4,7 @@ const cookieParser = require('cookie-parser');
 const authRoutes = require("./routes/auth.routes")
 const fileRoutes = require("./routes/file.routes")
 const folderRoutes = require("./routes/folder.routes")
+const contactRoutes = require("./routes/contact.routes")
 const cors = require("cors");
 const bodyParser = require('body-parser');
 
@@ -39,6 +40,7 @@ app.get("/path", (req, res, next) => {
 app.use('/api', authRoutes)
 app.use('/api', fileRoutes)
 app.use('/api', folderRoutes)
+app.use('/api', contactRoutes)
 
 
 

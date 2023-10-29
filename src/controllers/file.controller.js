@@ -14,6 +14,8 @@ const region = process.env.AWS_REGION;
 const bucketName = process.env.AWS_BUCKET_NAME;
 const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
 const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+const azureKey = process.env.AZURE_KEY;
+const azureRegion = process.env.AZURE_REGION;
 
 const getAllFiles = async (req, res, next) => {
   const result = await pool.query(
@@ -344,11 +346,11 @@ const fromFile = async (
     fs.readFileSync(wavFilePath)
   );
   console.log(wavFilePath);
-  console.log(audioConfig);
+  // console.log(audioConfig);
 
   const speechConfig = sdk.SpeechConfig.fromSubscription(
-    "40f160f190fa418d82711ac6df2ab6ec",
-    "eastus"
+    azureKey,
+    azureRegion
   );
   speechConfig.speechRecognitionLanguage = "es-ES";
   const recognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);

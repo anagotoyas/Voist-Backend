@@ -1,11 +1,20 @@
 const pg = require('pg');
 
+const dotenv = require("dotenv");
+dotenv.config();
+
+const port = process.env.DB_PORT;
+const host = process.env.DB_HOST;
+const user = process.env.DB_USERNAME;
+const password = process.env.DB_PASSWORD;
+const db = process.env.DB_DATABASE;
+
 const pool = new pg.Pool({
-    port: 5432,
-    host: 'instancebdd.cjmhkya27ir2.us-east-1.rds.amazonaws.com',
-    user: 'postgres',
-    password: 'db-voist',
-    database: 'db_voist',
+    port: port,
+    host: host,
+    user: user,
+    password: password,
+    database: db,
 });
 
 pool.on("connect", () => {
