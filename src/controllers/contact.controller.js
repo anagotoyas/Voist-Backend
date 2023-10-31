@@ -1,5 +1,24 @@
 const { pool } = require("../db");
 
+const getAllContacts = async (req, res, next) => {
+  try {
+    const userId = req.userId; 
+
+   
+    const result = await pool.query(`
+      SELECT u.id, u.name, u.email, u.gravatar
+      FROM contact c
+      JOIN users u ON c.contact_id = u.id
+      WHERE c.owner_id = $1
+    `, [userId]);
+
+    return res.status(200).json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 const getContactList = async (req, res, next) => {
   try {
     const userId = req.params.userId;
@@ -102,6 +121,7 @@ const getUsersWithContactStatus = async (req, res, next) => {
 
 
 module.exports = {
+  getAllContacts,
   getContactList,
   addContact,
   deleteContact,

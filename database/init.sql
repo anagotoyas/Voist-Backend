@@ -55,3 +55,10 @@ CREATE TABLE contact (
     
 )
 
+CREATE TABLE shared_file (
+    id serial PRIMARY KEY,
+     file_id integer REFERENCES file(id),
+    owner_id integer REFERENCES users(id),
+    contact_id integer REFERENCES users(id)
+    
+)

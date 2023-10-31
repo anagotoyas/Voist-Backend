@@ -5,12 +5,13 @@ const authRoutes = require("./routes/auth.routes")
 const fileRoutes = require("./routes/file.routes")
 const folderRoutes = require("./routes/folder.routes")
 const contactRoutes = require("./routes/contact.routes")
+const sharedFileRoutes = require("./routes/shared_file.routes")
 const cors = require("cors");
 const bodyParser = require('body-parser');
 
 const corsOptions = {
   origin:["https://voist.netlify.app","http://localhost:5173","https://voist.me"],
-  credentials:true
+  withCredentials:true
 }
 
 
@@ -41,6 +42,7 @@ app.use('/api', authRoutes)
 app.use('/api', fileRoutes)
 app.use('/api', folderRoutes)
 app.use('/api', contactRoutes)
+app.use('/api', sharedFileRoutes)
 
 
 
