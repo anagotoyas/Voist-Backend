@@ -13,7 +13,7 @@ const {
   removeAccessUser,
   setFilePath,
   saveAudioFile,
-  uploadAudio
+  getFilesForContact
 } = require("../controllers/file.controller");
 const { createFileSchema, updateFileSchema } = require("../schemas/file.schema");
 const { isAuth } =  require('../middlewares/auth.middleware')
@@ -54,6 +54,8 @@ router.put('/set-file-path', setFilePath);
 
 
  router.post("/save-file/:id", upload.any(), saveAudioFile);
+
+ router.get('/files-contact',isAuth,  getFilesForContact)
 
 
 

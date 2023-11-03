@@ -510,7 +510,24 @@ const createAndUploadPDF = async (content, id) => {
     console.error("Error al subir el PDF a S3:", error);
   }
 };
+const getFilesForContact = async (req, res, next) => {
+  try {
+    const contactId = req.userId; 
 
+    const query = `
+    SELECT f.*, false AS owner
+    FROM file f
+    JOIN shared_file sf ON f.id = sf.file_id
+    WHERE sf.contact_id = $1
+    `;
+
+    const result = await pool.query(query, [contactId]);
+
+    return res.status(200).json(result.rows);
+  } catch (error) {
+    res.status(500);
+  }
+};
 
 
 
@@ -525,5 +542,6 @@ module.exports = {
   removeAccessUser,
   setFilePath,
   saveAudioFile,
+  getFilesForContact
   
 };
