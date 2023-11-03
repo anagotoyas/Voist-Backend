@@ -5,7 +5,8 @@ const {
      shareFileWithContact,
     unshareFileWithContact,
     getFileInfo,
-    getContactsNotSharedWithFile
+    getContactsNotSharedWithFile,
+    getContactsListWithStatus,
 } = require("../controllers/sharedFile.controller");
 
 const { isAuth } =  require('../middlewares/auth.middleware')
@@ -22,6 +23,8 @@ router.delete("/unshare/:fileId/:contactId",isAuth, unshareFileWithContact);
 router.get("/info/:fileId",isAuth, getFileInfo);
 
 router.get("/notshared/:fileId", isAuth,getContactsNotSharedWithFile);
+
+router.get("/listfile/:fileId", isAuth,getContactsListWithStatus);
 
 
 module.exports = router;

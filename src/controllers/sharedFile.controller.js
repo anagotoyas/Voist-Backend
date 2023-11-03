@@ -96,7 +96,7 @@ const getFileInfo = async (req, res, next) => {
       const fileId = req.params.fileId; // El ID del archivo específico que deseas consultar
   
       const result = await pool.query(
-        "SELECT users.name, users.gravatar, users.email " +
+        "SELECT users.name, users.gravatar, users.email, users.id " +
         "FROM shared_file " +
         "INNER JOIN users ON shared_file.contact_id = users.id " +
         "WHERE shared_file.file_id = $1 AND shared_file.owner_id = $2",
@@ -137,10 +137,36 @@ const getFileInfo = async (req, res, next) => {
       next(error);
     }
   };
+  const getContactsListWithStatus = async (req, res, next) => {
+    try {
+      const userId = req.userId;
+      const fileId = req.params.fileId; 
+  
+      const result = await pool.query(
+        `
+        SELECT u.id, u.name, u.email, u.gravatar,
+               CASE
+                 WHEN sf.contact_id IS NOT NULL THEN true
+                 ELSE false
+               END AS has_access
+        FROM users u
+        LEFT JOIN shared_file sf
+        ON u.id = sf.contact_id AND sf.file_id = $1 AND sf.owner_id = $2
+        WHERE u.id IN (SELECT contact_id FROM contact WHERE owner_id = $2)
+        `, 
+        [fileId, userId]
+      );
+      return res.status(200).json(result.rows);
+    } catch (error) {
+      next(error);
+    }
+  };
+  
   
   module.exports = {
     shareFileWithContact,
     unshareFileWithContact,
     getFileInfo,
-    getContactsNotSharedWithFile
+    getContactsNotSharedWithFile,
+    getContactsListWithStatus
   };
