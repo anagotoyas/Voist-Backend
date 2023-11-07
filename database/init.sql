@@ -53,3 +53,5 @@ CREATE TABLE shared_file (
     contact_id integer REFERENCES users(id)
     
 )
+
+alter table file add column summary TEXT 

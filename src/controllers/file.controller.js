@@ -6,6 +6,7 @@ const path = require("path");
 const sdk = require("microsoft-cognitiveservices-speech-sdk");
 const WaveFile = require("wavefile").WaveFile;
 const aws = require("aws-sdk");
+const pdf = require('pdf-parse');
 require("aws-sdk/lib/maintenance_mode_message").suppress = true;
 const dotenv = require("dotenv");
 dotenv.config();
@@ -396,7 +397,7 @@ const fromFile = async (
     console.log("\n    Stop recognition.");
     // console.log("Texto reconocido: " + recognizedText);
     try {
-      const pdfURL = await createAndUploadPDF(recognizedText, idFile);
+      const pdfURL = await createAndUploadPDF(recognizedText, idFile,'transcripts');
 
       const query = `
           UPDATE file 
@@ -417,6 +418,8 @@ const fromFile = async (
         if (err) {
           console.error(`Error al eliminar el archivo: ${err}`);
         } else {
+          console.log(pdfURL)
+          
           console.log(`Archivo eliminado: ${wavFilePath}`);
         }
       });
@@ -434,7 +437,7 @@ const fromFile = async (
   recognizer.startContinuousRecognitionAsync();
 };
 
-const createAndUploadPDF = async (content, id) => {
+const createAndUploadPDF = async (content, id, bucket) => {
   
   const pageWidth = 595;
   const pageHeight = 842;
@@ -448,7 +451,7 @@ const createAndUploadPDF = async (content, id) => {
   let currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
   let y = pageHeight - margin;
 
-  const words = content.split(' ');
+  const words = content.split(/[\s\n]+/);
   let line = '';
 
   for (const word of words) {
@@ -485,7 +488,7 @@ const createAndUploadPDF = async (content, id) => {
     });
   }
 
-  const fileName = `transcripts/${id}.pdf`;
+  const fileName = `${bucket}/${id}.pdf`;
 
   const pdfBytes = await pdfDoc.save();
 
@@ -510,6 +513,37 @@ const createAndUploadPDF = async (content, id) => {
     console.error("Error al subir el PDF a S3:", error);
   }
 };
+
+const createSummary = async (req, res, next) => {
+  const { content, id, bucket } = req.body;
+  
+  
+  const pdfURL = await createAndUploadPDF(content, id, bucket);
+
+  
+
+
+  // db insert
+  try {
+    const query = `
+          UPDATE file 
+          SET summary = $1 
+          WHERE id = $2
+          RETURNING *
+        `;
+
+      await pool.query(query, [
+        pdfURL.toString(),
+        id
+      ]);
+    res.json({message:"resumen guardardo",
+  pdfUrl:pdfURL})
+  } catch (error) {
+    res.status(error.status).json(error.message);
+  }
+};
+
+
 const getFilesForContact = async (req, res, next) => {
   try {
     const contactId = req.userId; 
@@ -542,6 +576,7 @@ module.exports = {
   removeAccessUser,
   setFilePath,
   saveAudioFile,
-  getFilesForContact
+  getFilesForContact,
+  createSummary
   
 };

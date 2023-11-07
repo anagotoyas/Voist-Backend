@@ -1,5 +1,5 @@
 const Router = require("express");
-const multer = require('multer');
+const multer = require("multer");
 
 const { validateSchema } = require("../middlewares/validate.middleware");
 const {
@@ -13,14 +13,17 @@ const {
   removeAccessUser,
   setFilePath,
   saveAudioFile,
-  getFilesForContact
+  getFilesForContact,
+  createSummary,
 } = require("../controllers/file.controller");
-const { createFileSchema, updateFileSchema } = require("../schemas/file.schema");
-const { isAuth } =  require('../middlewares/auth.middleware')
- 
+const {
+  createFileSchema,
+  updateFileSchema,
+} = require("../schemas/file.schema");
+const { isAuth } = require("../middlewares/auth.middleware");
 
 const router = Router();
-const upload = multer()
+const upload = multer();
 
 // // Middleware para configurar encabezados CORS
 // router.use((req, res, next) => {
@@ -29,16 +32,14 @@ const upload = multer()
 //     res.setHeader('Access-Control-Allow-Credentials', true);
 
 //     // Continúa con el flujo de la solicitud
-//     next(); 
+//     next();
 //   });
 
-router.get('/all-files', isAuth, getAllFiles)
+router.get("/all-files", isAuth, getAllFiles);
 
-router.get('/all-files/:idFolder', isAuth, getAllFilesByFolder)
+router.get("/all-files/:idFolder", isAuth, getAllFilesByFolder);
 
-
-
-router.get('/files/:id', getFile)
+router.get("/files/:id", getFile);
 
 router.post("/files", isAuth, createFile);
 
@@ -46,17 +47,16 @@ router.put("/files/:id", validateSchema(updateFileSchema), updateFile);
 
 router.delete("/files/:id", deleteFile);
 
-router.post('/add-user', addAccessUser); 
+router.post("/add-user", addAccessUser);
 
-router.post('/remove-user', removeAccessUser);
+router.post("/remove-user", removeAccessUser);
 
-router.put('/set-file-path', setFilePath);
+router.put("/set-file-path", setFilePath);
 
+router.post("/save-file/:id", upload.any(), saveAudioFile);
 
- router.post("/save-file/:id", upload.any(), saveAudioFile);
+router.get("/files-contact", isAuth, getFilesForContact);
 
- router.get('/files-contact',isAuth,  getFilesForContact)
-
-
+router.post("/createSummary", createSummary);
 
 module.exports = router;
