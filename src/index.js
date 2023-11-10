@@ -6,6 +6,7 @@ const fileRoutes = require("./routes/file.routes")
 const folderRoutes = require("./routes/folder.routes")
 const contactRoutes = require("./routes/contact.routes")
 const sharedFileRoutes = require("./routes/shared_file.routes")
+const converationRoutes = require("./routes/conversation.routes")
 const cors = require("cors");
 const bodyParser = require('body-parser');
 
@@ -43,6 +44,7 @@ app.use('/api', fileRoutes)
 app.use('/api', folderRoutes)
 app.use('/api', contactRoutes)
 app.use('/api', sharedFileRoutes)
+app.use('/api', converationRoutes)
 
 
 

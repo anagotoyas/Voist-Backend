@@ -55,3 +55,14 @@ CREATE TABLE shared_file (
 )
 
 alter table file add column summary TEXT 
+
+CREATE TABLE conversation (
+    id serial PRIMARY KEY,
+    question TEXT,
+    answer TEXT,
+    file_id integer REFERENCES file(id),
+    user_id integer REFERENCES users(id),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+)
