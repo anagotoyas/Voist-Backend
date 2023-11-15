@@ -6,7 +6,7 @@ const path = require("path");
 const sdk = require("microsoft-cognitiveservices-speech-sdk");
 const WaveFile = require("wavefile").WaveFile;
 const aws = require("aws-sdk");
-const pdf = require('pdf-parse');
+const pdf = require("pdf-parse");
 require("aws-sdk/lib/maintenance_mode_message").suppress = true;
 const dotenv = require("dotenv");
 dotenv.config();
@@ -70,13 +70,11 @@ const createFile = async (req, res, next) => {
 
 const updateFile = async (req, res) => {
   const { title } = req.body;
-  
+
   const result = await pool.query(
     "UPDATE file SET title=$1, updated_at=now() WHERE id=$2 RETURNING *",
     [title, req.params.id]
   );
-
-  
 
   if (result.rowCount === 0) {
     return res.status(404).json({ message: "No existe el archivo con ese id" });
@@ -266,8 +264,7 @@ const saveAudioFile = (req, res) => {
 
   fs.writeFile(filePath, audioBuffer, (err) => {
     if (err) {
-     
-      console.log('error al guardar el archivo: '+err);
+      console.log("error al guardar el archivo: " + err);
       res.status(500).send("Error al guardar el archivo WAV");
     } else {
       s3.upload(params, (err, data) => {
@@ -349,10 +346,7 @@ const fromFile = async (
   console.log(wavFilePath);
   // console.log(audioConfig);
 
-  const speechConfig = sdk.SpeechConfig.fromSubscription(
-    azureKey,
-    azureRegion
-  );
+  const speechConfig = sdk.SpeechConfig.fromSubscription(azureKey, azureRegion);
   speechConfig.speechRecognitionLanguage = "es-ES";
   const recognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
 
@@ -397,7 +391,11 @@ const fromFile = async (
     console.log("\n    Stop recognition.");
     // console.log("Texto reconocido: " + recognizedText);
     try {
-      const pdfURL = await createAndUploadPDF(recognizedText, idFile,'transcripts');
+      const pdfURL = await createAndUploadPDF(
+        recognizedText,
+        idFile,
+        "transcripts"
+      );
 
       const query = `
           UPDATE file 
@@ -418,8 +416,8 @@ const fromFile = async (
         if (err) {
           console.error(`Error al eliminar el archivo: ${err}`);
         } else {
-          console.log(pdfURL)
-          
+          console.log(pdfURL);
+
           console.log(`Archivo eliminado: ${wavFilePath}`);
         }
       });
@@ -427,7 +425,6 @@ const fromFile = async (
       res.status(200).json({
         message: "Transcripción actualizada",
       });
-      
     } catch (error) {
       res.status(500);
     }
@@ -438,10 +435,9 @@ const fromFile = async (
 };
 
 const createAndUploadPDF = async (content, id, bucket) => {
-  
   const pageWidth = 595;
   const pageHeight = 842;
-  
+
   const lineHeight = 20;
 
   const pdfDoc = await PDFDocument.create();
@@ -452,14 +448,13 @@ const createAndUploadPDF = async (content, id, bucket) => {
   let y = pageHeight - margin;
 
   const words = content.split(/[\s\n]+/);
-  let line = '';
+  let line = "";
 
   for (const word of words) {
-    const currentLine = line + (line ? ' ' : '') + word;
+    const currentLine = line + (line ? " " : "") + word;
     const textSize = font.widthOfTextAtSize(currentLine, 12);
 
     if (textSize > pageWidth - 2 * margin) {
-     
       currentPage.drawText(line, {
         x: margin,
         y,
@@ -469,7 +464,6 @@ const createAndUploadPDF = async (content, id, bucket) => {
       y -= lineHeight;
 
       if (y - lineHeight < margin) {
-      
         currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
         y = pageHeight - margin;
       }
@@ -506,7 +500,6 @@ const createAndUploadPDF = async (content, id, bucket) => {
   };
 
   try {
-    
     const result = await s3.upload(params).promise();
     return result.Location;
   } catch (error) {
@@ -516,12 +509,7 @@ const createAndUploadPDF = async (content, id, bucket) => {
 
 const createSummary = async (req, res, next) => {
   const { content, id, bucket } = req.body;
-  
-  
   const pdfURL = await createAndUploadPDF(content, id, bucket);
-
-  
-
 
   // db insert
   try {
@@ -532,21 +520,16 @@ const createSummary = async (req, res, next) => {
           RETURNING *
         `;
 
-      await pool.query(query, [
-        pdfURL.toString(),
-        id
-      ]);
-    res.json({message:"resumen guardardo",
-  pdfUrl:pdfURL})
+    await pool.query(query, [pdfURL.toString(), id]);
+    res.json({ message: "resumen guardardo", pdfUrl: pdfURL });
   } catch (error) {
     res.status(error.status).json(error.message);
   }
 };
 
-
 const getFilesForContact = async (req, res, next) => {
   try {
-    const contactId = req.userId; 
+    const contactId = req.userId;
 
     const query = `
     SELECT f.*, false AS owner
@@ -563,7 +546,26 @@ const getFilesForContact = async (req, res, next) => {
   }
 };
 
+const getFilesPerMonth = async (req, res, next) => {
+  const currentYear = new Date().getFullYear();
+  const query = `SELECT DATE_TRUNC('month', created_at) AS month, 
+  COUNT(*) AS file_count FROM file 
+  WHERE EXTRACT(YEAR FROM "created_at") = $1
+      GROUP BY month
+      ORDER BY month;`;
 
+  const result = await pool.query(query,[currentYear]);
+  return res.json(result.rows);
+};
+
+const countFiles= async (req, res, next) => {
+  const currentYear = new Date().getFullYear();
+  const query = `SELECT COUNT(*) AS file_count FROM file 
+  WHERE EXTRACT(YEAR FROM "created_at") = $1`;
+
+  const result = await pool.query(query,[currentYear]);
+  return res.json(result.rows[0]);
+}
 
 module.exports = {
   getAllFiles,
@@ -577,6 +579,7 @@ module.exports = {
   setFilePath,
   saveAudioFile,
   getFilesForContact,
-  createSummary
-  
+  createSummary,
+  getFilesPerMonth,
+  countFiles
 };

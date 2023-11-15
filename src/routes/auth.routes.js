@@ -1,7 +1,7 @@
 const Router = require('express');
 const { isAuth } =  require('../middlewares/auth.middleware')
 const { validateSchema } = require('../middlewares/validate.middleware')
-const { signin,signup,signout,profile } = require('../controllers/auth.controller')
+const { signin,signup,signout,profile, countUsers, countNewUsers, findAllUsers } = require('../controllers/auth.controller')
 const { signinSchema, signupSchema } = require('../schemas/auth.schema')
 
 const router = Router();
@@ -26,6 +26,12 @@ router.post('/signup',validateSchema(signupSchema), signup );
 router.post('/signout',signout );
 
 router.get('/profile', profile);
+
+router.get('/users-count', countUsers);
+
+router.get('/users-new', countNewUsers);
+
+router.get('/users', findAllUsers);
 
 module.exports = router;
 

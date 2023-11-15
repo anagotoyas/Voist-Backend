@@ -66,3 +66,13 @@ CREATE TABLE conversation (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
 )
+
+CREATE TABLE logged_time (
+  id SERIAL PRIMARY KEY,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  minutes DECIMAL(10, 2),
+  user_id integer REFERENCES users(id),
+);
+
+
+alter table users add column role integer(1) DEFAULT 2

@@ -15,6 +15,8 @@ const {
   saveAudioFile,
   getFilesForContact,
   createSummary,
+  getFilesPerMonth,
+  countFiles
 } = require("../controllers/file.controller");
 const {
   createFileSchema,
@@ -58,5 +60,10 @@ router.post("/save-file/:id", upload.any(), saveAudioFile);
 router.get("/files-contact", isAuth, getFilesForContact);
 
 router.post("/createSummary", createSummary);
+
+router.get("/files-month", getFilesPerMonth);
+
+router.get("/files-count", countFiles); 
+
 
 module.exports = router;
