@@ -169,6 +169,24 @@ async function getCountBetween(startDate, endDate) {
       });
     });
   };
+
+  const findUser = (req, res) => {
+    const { id } = req.params;
+  
+    const query = `
+      SELECT *
+      FROM users
+      WHERE id = $1;
+    `;
+  
+    pool.query(query, [id], (error, results) => {
+      if (error) {
+        throw error;
+      }
+  
+      res.status(200).json(results.rows[0]);
+    });
+  }
   
   
 
@@ -181,5 +199,6 @@ module.exports ={
     profile,
     countUsers,
     countNewUsers,
-    findAllUsers
+    findAllUsers,
+    findUser
 }
