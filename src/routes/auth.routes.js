@@ -10,6 +10,7 @@ const {
   countNewUsers,
   findAllUsers,
   findUser,
+  findTimeByUserId
 } = require("../controllers/auth.controller");
 const { signinSchema, signupSchema } = require("../schemas/auth.schema");
 
@@ -40,5 +41,7 @@ router.get("/users-new", countNewUsers);
 router.get("/users", findAllUsers);
 
 router.get("/users/:id", findUser);
+
+router.get("/users/:id/time", findTimeByUserId);
 
 module.exports = router;

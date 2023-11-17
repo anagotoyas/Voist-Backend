@@ -187,6 +187,30 @@ async function getCountBetween(startDate, endDate) {
       res.status(200).json(results.rows[0]);
     });
   }
+
+  const findTimeByUserId =(req,res) =>{
+    const {id} = req.params;
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  
+    const query = {
+      text: `
+        SELECT * 
+        FROM logged_time 
+        WHERE created_at >= $1 AND user_id = $2 
+        ORDER BY created_at ASC
+      `,
+      values: [sevenDaysAgo, id],
+    };
+  
+    pool.query(query, (error, results) => {
+      if (error) {
+        throw error;
+      }
+  
+      res.status(200).json(results.rows);
+    });
+  }
   
   
 
@@ -200,5 +224,6 @@ module.exports ={
     countUsers,
     countNewUsers,
     findAllUsers,
-    findUser
+    findUser,
+    findTimeByUserId
 }
