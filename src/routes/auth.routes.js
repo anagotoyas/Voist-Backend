@@ -1,4 +1,6 @@
 const Router = require("express");
+const multer = require("multer");
+
 const { isAuth } = require("../middlewares/auth.middleware");
 const { validateSchema } = require("../middlewares/validate.middleware");
 const {
@@ -10,12 +12,14 @@ const {
   countNewUsers,
   findAllUsers,
   findUser,
-  findTimeByUserId
+  findTimeByUserId,
+  editProfile,
+  changePassword
 } = require("../controllers/auth.controller");
 const { signinSchema, signupSchema } = require("../schemas/auth.schema");
 
 const router = Router();
-
+const upload = multer();
 // // Middleware para configurar encabezados CORS
 // router.use((req, res, next) => {
 //     // Configura los encabezados CORS
@@ -43,5 +47,9 @@ router.get("/users", findAllUsers);
 router.get("/users/:id", findUser);
 
 router.get("/users/:id/time", findTimeByUserId);
+
+router.put("/edit-profile",isAuth, upload.any(), editProfile);
+
+router.put("/password",isAuth, changePassword); 
 
 module.exports = router;
