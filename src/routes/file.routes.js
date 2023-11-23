@@ -16,7 +16,8 @@ const {
   getFilesForContact,
   createSummary,
   getFilesPerMonth,
-  countFiles
+  countFiles,
+  attachedFiles
 } = require("../controllers/file.controller");
 const {
   createFileSchema,
@@ -56,6 +57,9 @@ router.post("/remove-user", removeAccessUser);
 router.put("/set-file-path", setFilePath);
 
 router.post("/save-file/:id", upload.any(), saveAudioFile);
+
+router.post('/subir-archivos', upload.any(), attachedFiles);
+
 
 router.get("/files-contact", isAuth, getFilesForContact);
 

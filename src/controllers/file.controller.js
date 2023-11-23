@@ -1,6 +1,7 @@
 const { pool } = require("../db");
 const { PDFDocument, rgb, StandardFonts } = require("pdf-lib");
 const fs = require("fs");
+
 const multer = require("multer");
 const path = require("path");
 const sdk = require("microsoft-cognitiveservices-speech-sdk");
@@ -86,10 +87,13 @@ const updateFile = async (req, res) => {
 };
 
 const deleteFile = async (req, res) => {
+  await pool.query("DELETE FROM conversation WHERE file_id = $1", [
+    req.params.id,
+  ]);
 
-  await pool.query("DELETE FROM conversation WHERE file_id = $1", [req.params.id]);
-
-  await pool.query("DELETE FROM shared_file WHERE file_id = $1", [req.params.id]);
+  await pool.query("DELETE FROM shared_file WHERE file_id = $1", [
+    req.params.id,
+  ]);
 
   const result = await pool.query("DELETE FROM file where id=$1", [
     req.params.id,
@@ -559,18 +563,86 @@ const getFilesPerMonth = async (req, res, next) => {
       GROUP BY month
       ORDER BY month;`;
 
-  const result = await pool.query(query,[currentYear]);
+  const result = await pool.query(query, [currentYear]);
   return res.json(result.rows);
 };
 
-const countFiles= async (req, res, next) => {
+const countFiles = async (req, res, next) => {
   const currentYear = new Date().getFullYear();
   const query = `SELECT COUNT(*) AS file_count FROM file 
   WHERE EXTRACT(YEAR FROM "created_at") = $1`;
 
-  const result = await pool.query(query,[currentYear]);
+  const result = await pool.query(query, [currentYear]);
   return res.json(result.rows[0]);
-}
+};
+
+const attachedFiles = async (req, res, next) => {
+  const { PdfReader } = await import("pdfreader");
+
+  const enlacesArchivos = [];
+  let contenido_archivos = "";
+
+  try {
+    const s3 = new aws.S3({
+      region,
+      accessKeyId,
+      secretAccessKey,
+    });
+
+    // Función para extraer texto de un PDF
+    const extraerTextoPDF = async (s3File) => {
+      return new Promise((resolve, reject) => {
+        const pdfReader = new PdfReader();
+        let textoPDF = "";
+
+        pdfReader.parseBuffer(s3File.Body, (err, item) => {
+          if (err) {
+            reject(err);
+          } else if (!item) {
+            resolve(textoPDF);
+          } else if (item.text) {
+            textoPDF += " " + item.text;
+          }
+        });
+      });
+    };
+
+    // Usamos Promise.all para subir todos los archivos y extraer texto concurrentemente
+    await Promise.all(
+      req.files.map(async (file) => {
+        const fileName = `archivos/${file.originalname}`;
+        const params = {
+          Bucket: "voist-records",
+          Key: fileName,
+          Body: file.buffer,
+          ContentType: "application/pdf",
+        };
+
+        const result = await s3.upload(params).promise();
+        enlacesArchivos.push(result.Location);
+
+        const s3Params = {
+          Bucket: "voist-records",
+          Key: fileName,
+        };
+
+        const s3File = await s3.getObject(s3Params).promise();
+
+        // Extraer texto del PDF y concatenar a contenido_archivos
+        const textoPDF = await extraerTextoPDF(s3File);
+        contenido_archivos +=+"\n"+ textoPDF;
+      })
+    );
+
+    console.log(contenido_archivos);
+    console.log(enlacesArchivos);
+    res.json({ enlacesArchivos, contenido_archivos });
+  } catch (error) {
+    console.error("Error al procesar archivos:", error);
+    res.status(500).json({ error: "Error al procesar archivos" });
+  }
+};
+
 
 module.exports = {
   getAllFiles,
@@ -586,5 +658,7 @@ module.exports = {
   getFilesForContact,
   createSummary,
   getFilesPerMonth,
-  countFiles
+  countFiles,
+  attachedFiles,
 };
+ 

@@ -76,3 +76,11 @@ CREATE TABLE logged_time (
 
 
 alter table users add column role integer(1) DEFAULT 2
+
+CREATE TABLE attached_file (
+  id SERIAL PRIMARY KEY,
+  file_id integer REFERENCES file(id),
+  link TEXT,
+
+);
+

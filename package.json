@@ -22,6 +22,7 @@
     "path": "^0.12.7",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
+    "pdfreader": "^3.0.2",
     "pg": "^8.11.3",
     "serverless-http": "^3.1.1",
     "socket.io": "^4.7.2",
