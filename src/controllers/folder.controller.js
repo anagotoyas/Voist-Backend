@@ -55,33 +55,39 @@ const updateFolder = async (req, res) => {
 };
 
 const deleteFolder = async (req, res) => {
+  try {
+    // Obtener IDs de archivos en el folder
+    const fileIdsResult = await pool.query(
+      "SELECT id FROM file WHERE folder_id = $1",
+      [req.params.id]
+    );
 
-  try{
-    await pool.query("DELETE FROM file where folder_id=$1", [
-      req.params.id,
-    ]);
+    const fileIds = fileIdsResult.rows.map((file) => file.id);
 
-    const result = await pool.query("DELETE FROM folder where id=$1", [
+    await pool.query("DELETE FROM conversation WHERE file_id = ANY($1)", [fileIds]);
+
+    await pool.query("DELETE FROM shared_file WHERE file_id = ANY($1)", [fileIds]);
+
+
+    // Eliminar los archivos en el folder
+    await pool.query("DELETE FROM file WHERE folder_id = $1", [req.params.id]);
+
+    // Eliminar el folder
+    const result = await pool.query("DELETE FROM folder WHERE id = $1", [
       req.params.id,
     ]);
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ message: "No existe el folder con ese id" });
+      return res
+        .status(404)
+        .json({ message: "No existe el folder con ese id" });
     }
 
-  return res.sendStatus(204);
-
+    return res.sendStatus(204);
   } catch (err) {
-    console.log(err);
+    console.error(err);
     return res.status(500).json({ message: "Error al eliminar el folder" });
-
   }
-
-
-  
-
-  
-
 };
 
 module.exports = {
@@ -91,4 +97,3 @@ module.exports = {
   updateFolder,
   deleteFolder,
 };
- 

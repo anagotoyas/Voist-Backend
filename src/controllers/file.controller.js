@@ -86,6 +86,11 @@ const updateFile = async (req, res) => {
 };
 
 const deleteFile = async (req, res) => {
+
+  await pool.query("DELETE FROM conversation WHERE file_id = $1", [req.params.id]);
+
+  await pool.query("DELETE FROM shared_file WHERE file_id = $1", [req.params.id]);
+
   const result = await pool.query("DELETE FROM file where id=$1", [
     req.params.id,
   ]);
