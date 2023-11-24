@@ -84,3 +84,15 @@ CREATE TABLE attached_file (
 
 );
 
+alter table file add column content TEXT 
+
+alter table file add column total_content TEXT 
+
+alter table file add column have_files boolean DEFAULT false
+
+ALTER TABLE file DROP COLUMN people_access;
+
+alter table file add column summary_files TEXT 
+
+
+

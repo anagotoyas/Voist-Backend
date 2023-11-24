@@ -58,7 +58,7 @@ router.put("/set-file-path", setFilePath);
 
 router.post("/save-file/:id", upload.any(), saveAudioFile);
 
-router.post('/subir-archivos', upload.any(), attachedFiles);
+router.post('/subir-archivos/:id', upload.any(), attachedFiles);
 
 
 router.get("/files-contact", isAuth, getFilesForContact);

@@ -456,14 +456,37 @@ const createAndUploadPDF = async (content, id, bucket) => {
   let currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
   let y = pageHeight - margin;
 
-  const words = content.split(/[\s\n]+/);
-  let line = "";
+  const paragraphs = content.split(/\n+/);
 
-  for (const word of words) {
-    const currentLine = line + (line ? " " : "") + word;
-    const textSize = font.widthOfTextAtSize(currentLine, 12);
+  for (const paragraph of paragraphs) {
+    const words = paragraph.split(/\s+/);
+    let line = "";
 
-    if (textSize > pageWidth - 2 * margin) {
+    for (const word of words) {
+      const currentLine = line + (line ? " " : "") + word;
+      const textSize = font.widthOfTextAtSize(currentLine, 12);
+
+      if (textSize > pageWidth - 2 * margin) {
+        currentPage.drawText(line, {
+          x: margin,
+          y,
+          size: 12,
+          color: rgb(0, 0, 0),
+        });
+        y -= lineHeight;
+
+        if (y - lineHeight < margin) {
+          currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
+          y = pageHeight - margin;
+        }
+
+        line = word;
+      } else {
+        line = currentLine;
+      }
+    }
+
+    if (line) {
       currentPage.drawText(line, {
         x: margin,
         y,
@@ -476,19 +499,7 @@ const createAndUploadPDF = async (content, id, bucket) => {
         currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
         y = pageHeight - margin;
       }
-
-      line = word;
-    } else {
-      line = currentLine;
     }
-  }
-  if (line) {
-    currentPage.drawText(line, {
-      x: margin,
-      y,
-      size: 12,
-      color: rgb(0, 0, 0),
-    });
   }
 
   const fileName = `${bucket}/${id}.pdf`;
@@ -517,14 +528,14 @@ const createAndUploadPDF = async (content, id, bucket) => {
 };
 
 const createSummary = async (req, res, next) => {
-  const { content, id, bucket } = req.body;
+  const { content, id, bucket, atributo } = req.body;
   const pdfURL = await createAndUploadPDF(content, id, bucket);
 
   // db insert
   try {
     const query = `
           UPDATE file 
-          SET summary = $1 
+          SET ${atributo}  = $1 
           WHERE id = $2
           RETURNING *
         `;
@@ -576,8 +587,27 @@ const countFiles = async (req, res, next) => {
   return res.json(result.rows[0]);
 };
 
-const attachedFiles = async (req, res, next) => {
+// Función para extraer texto de un PDF
+const extraerTextoPDF = async (s3File) => {
   const { PdfReader } = await import("pdfreader");
+  return new Promise((resolve, reject) => {
+    const pdfReader = new PdfReader();
+    let textoPDF = "";
+
+    pdfReader.parseBuffer(s3File.Body, (err, item) => {
+      if (err) {
+        reject(err);
+      } else if (!item) {
+        resolve(textoPDF);
+      } else if (item.text) {
+        textoPDF += " " + item.text.replace(/[^\x00-\x7F]/g, "");
+      }
+    });
+  });
+};
+
+const attachedFiles = async (req, res, next) => {
+  const id = req.params.id;
 
   const enlacesArchivos = [];
   let contenido_archivos = "";
@@ -589,27 +619,8 @@ const attachedFiles = async (req, res, next) => {
       secretAccessKey,
     });
 
-    // Función para extraer texto de un PDF
-    const extraerTextoPDF = async (s3File) => {
-      return new Promise((resolve, reject) => {
-        const pdfReader = new PdfReader();
-        let textoPDF = "";
-
-        pdfReader.parseBuffer(s3File.Body, (err, item) => {
-          if (err) {
-            reject(err);
-          } else if (!item) {
-            resolve(textoPDF);
-          } else if (item.text) {
-            textoPDF += " " + item.text;
-          }
-        });
-      });
-    };
-
-    // Usamos Promise.all para subir todos los archivos y extraer texto concurrentemente
     await Promise.all(
-      req.files.map(async (file) => {
+      req.files.map(async (file, index) => {
         const fileName = `archivos/${file.originalname}`;
         const params = {
           Bucket: "voist-records",
@@ -628,21 +639,76 @@ const attachedFiles = async (req, res, next) => {
 
         const s3File = await s3.getObject(s3Params).promise();
 
-        // Extraer texto del PDF y concatenar a contenido_archivos
         const textoPDF = await extraerTextoPDF(s3File);
-        contenido_archivos +=+"\n"+ textoPDF;
+        contenido_archivos += `Archivo ${index + 1}: ${textoPDF}\n`;
+
+        const insertQuery = `INSERT INTO attached_file (file_id, link) VALUES ($1, $2)`;
+        await pool.query(insertQuery, [id, result.Location]);
       })
     );
+    console.log("attached files creados")
 
-    console.log(contenido_archivos);
-    console.log(enlacesArchivos);
-    res.json({ enlacesArchivos, contenido_archivos });
+    const normalizedText = contenido_archivos
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    const transcriptPdf = `transcripts/${id}.pdf`;
+
+    const s3ParamsTranscript = {
+      Bucket: "voist-records",
+      Key: transcriptPdf,
+    };
+
+    const s3FileTranscript = await s3.getObject(s3ParamsTranscript).promise();
+    const textoTranscript = await extraerTextoPDF(s3FileTranscript);
+
+    const totalText = `Texto de los archivos adjuntos o material de clase: ${normalizedText} Texto de la transcripcion: ${textoTranscript}`;
+
+    const totalNormalizedText = totalText
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    const pdfURL = await createAndUploadPDF(normalizedText, id, "contenido");
+    const pdfURLTotal = await createAndUploadPDF(
+      totalNormalizedText,
+      id,
+      "total"
+    );
+
+    console.log("juntar textos")
+
+    try {
+      const query = `
+        UPDATE file 
+        SET content = $1,
+        total_content = $2,
+        have_files = true
+        WHERE id = $3
+        RETURNING *;
+      `;
+
+      const dbResult = await pool.query(query, [
+        pdfURL.toString(),
+        pdfURLTotal.toString(),
+        id,
+      ]);
+      console.log("contenido guardado")
+      res.json({
+        message: "Contenido guardado",
+        pdfUrl: pdfURL,
+        dbResult: dbResult.rows,
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: "Error al actualizar la base de datos",
+        errorMessage: error.message,
+      });
+    }
   } catch (error) {
     console.error("Error al procesar archivos:", error);
     res.status(500).json({ error: "Error al procesar archivos" });
   }
 };
-
 
 module.exports = {
   getAllFiles,
@@ -661,4 +727,3 @@ module.exports = {
   countFiles,
   attachedFiles,
 };
- 
