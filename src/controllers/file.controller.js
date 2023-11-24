@@ -282,9 +282,20 @@ const saveAudioFile = (req, res) => {
           res.status(500).send("Error al guardar el archivo en S3");
         } else {
           const wavURL = data.Location;
-          fromFile(filePath, res, id, formattedDuration, wavURL);
+          
 
-          res.status(200).send("Archivo WAV guardado exitosamente");
+          fromFile(filePath, res, id, formattedDuration, wavURL, (fromFileError, fromFileResponse) => {
+            if (fromFileError) {
+              console.error("Error en fromFile:", fromFileError);
+              res.status(500).send("Error en fromFile");
+            } else {
+              console.log(fromFileResponse)
+              res.status(200).send({
+                message: "Archivo WAV guardado exitosamente",
+                fromFileResponse: fromFileResponse
+              });
+            }
+          });
         }
       });
     }
@@ -349,6 +360,7 @@ const fromFile = async (
   durationInSeconds,
   wavURL
 ) => {
+  console.log("comienzo fromfile")
   const audioConfig = sdk.AudioConfig.fromWavFileInput(
     fs.readFileSync(wavFilePath)
   );
@@ -373,9 +385,9 @@ const fromFile = async (
       console.log(`RECONOCIDO: ${e.result.text}`);
     } else if (e.result.reason === sdk.ResultReason.NoMatch) {
       console.log("No se encontró ninguna coincidencia.");
-      res.status(500).json({
-        message: "NOMATCH: No se pudo reconocer el discurso.",
-      });
+      // res.status(500).json({
+      //   message: "NOMATCH: No se pudo reconocer el discurso.",
+      // });
     }
   };
 
@@ -431,8 +443,11 @@ const fromFile = async (
         }
       });
 
+      console.log("termino fromfile")
+
       res.status(200).json({
         message: "Transcripción actualizada",
+        transcriptPdf: pdfURL,
       });
     } catch (error) {
       res.status(500);
@@ -444,6 +459,7 @@ const fromFile = async (
 };
 
 const createAndUploadPDF = async (content, id, bucket) => {
+  console.log("comienzo createAndUploadPDF")
   const pageWidth = 595;
   const pageHeight = 842;
 
@@ -520,6 +536,7 @@ const createAndUploadPDF = async (content, id, bucket) => {
   };
 
   try {
+    console.log("termino createAndUploadPDF")
     const result = await s3.upload(params).promise();
     return result.Location;
   } catch (error) {
@@ -607,6 +624,7 @@ const extraerTextoPDF = async (s3File) => {
 };
 
 const attachedFiles = async (req, res, next) => {
+  console.log("comienzo attachedFiles")
   const id = req.params.id;
 
   const enlacesArchivos = [];
