@@ -722,7 +722,7 @@ const attachedFiles = async (req, res, next) => {
   }
 };
 
-const juntarTextos= (req, res) => {
+const juntarTextos = (req, res) => {
   const id = req.params.id;
   const transcriptPdf = `transcripts/${id}.pdf`;
   const contenidoPdf = `contenido/${id}.pdf`;
@@ -747,9 +747,12 @@ const juntarTextos= (req, res) => {
   const s3FileContenido = s3.getObject(s3ParamsContenido).promise();
 
   Promise.all([s3FileTranscript, s3FileContenido])
-    .then((results) => {
-      const textoTranscript = extraerTextoPDF(results[0]);
-      const textoContenido = extraerTextoPDF(results[1]);
+    .then(async (results) => {
+      const textoTranscript = await extraerTextoPDF(results[0]);
+      const textoContenido = await extraerTextoPDF(results[1]);
+
+      console.log(textoContenido);
+      console.log(textoTranscript);
 
       const totalText = `Texto de los archivos adjuntos o material de clase: ${textoContenido} Texto de la transcripcion: ${textoTranscript}`;
 
@@ -792,8 +795,8 @@ const juntarTextos= (req, res) => {
       console.error("Error al procesar archivos:", error);
       res.status(500).json({ error: "Error al procesar archivos" });
     });
+};
 
-}
 
 module.exports = {
   getAllFiles,
