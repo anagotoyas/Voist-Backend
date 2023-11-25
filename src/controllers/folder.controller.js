@@ -64,10 +64,17 @@ const deleteFolder = async (req, res) => {
 
     const fileIds = fileIdsResult.rows.map((file) => file.id);
 
-    await pool.query("DELETE FROM conversation WHERE file_id = ANY($1)", [fileIds]);
+    await pool.query("DELETE FROM attached_file WHERE file_id = = ANY($1)", [
+      fileIds,
+    ]);
 
-    await pool.query("DELETE FROM shared_file WHERE file_id = ANY($1)", [fileIds]);
+    await pool.query("DELETE FROM conversation WHERE file_id = ANY($1)", [
+      fileIds,
+    ]);
 
+    await pool.query("DELETE FROM shared_file WHERE file_id = ANY($1)", [
+      fileIds,
+    ]);
 
     // Eliminar los archivos en el folder
     await pool.query("DELETE FROM file WHERE folder_id = $1", [req.params.id]);

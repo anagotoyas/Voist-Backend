@@ -91,6 +91,10 @@ const deleteFile = async (req, res) => {
     req.params.id,
   ]);
 
+  await pool.query("DELETE FROM attached_file WHERE file_id = $1", [
+    req.params.id,
+  ]);
+
   await pool.query("DELETE FROM shared_file WHERE file_id = $1", [
     req.params.id,
   ]);
