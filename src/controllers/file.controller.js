@@ -284,19 +284,10 @@ const saveAudioFile = (req, res) => {
           const wavURL = data.Location;
           
 
-          fromFile(filePath, res, id, formattedDuration, wavURL, (fromFileError, fromFileResponse) => {
-            if (fromFileError) {
-              console.error("Error en fromFile:", fromFileError);
-              res.status(500).send("Error en fromFile");
-            } else {
-              console.log(fromFileResponse)
-              res.status(200).send({
-                message: "Archivo WAV guardado exitosamente",
-                fromFileResponse: fromFileResponse
-              });
-            }
-          });
+          fromFile(filePath, res, id, formattedDuration, wavURL);
+          res.status(200).send("Archivo guardado");
         }
+
       });
     }
   });
@@ -670,28 +661,28 @@ const attachedFiles = async (req, res, next) => {
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
 
-    const transcriptPdf = `transcripts/${id}.pdf`;
+    // const transcriptPdf = `transcripts/${id}.pdf`;
 
-    const s3ParamsTranscript = {
-      Bucket: "voist-records",
-      Key: transcriptPdf,
-    };
+    // const s3ParamsTranscript = {
+    //   Bucket: "voist-records",
+    //   Key: transcriptPdf,
+    // };
 
-    const s3FileTranscript = await s3.getObject(s3ParamsTranscript).promise();
-    const textoTranscript = await extraerTextoPDF(s3FileTranscript);
+    // const s3FileTranscript = await s3.getObject(s3ParamsTranscript).promise();
+    // const textoTranscript = await extraerTextoPDF(s3FileTranscript);
 
-    const totalText = `Texto de los archivos adjuntos o material de clase: ${normalizedText} Texto de la transcripcion: ${textoTranscript}`;
+    // const totalText = `Texto de los archivos adjuntos o material de clase: ${normalizedText} Texto de la transcripcion: ${textoTranscript}`;
 
-    const totalNormalizedText = totalText
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
+    // const totalNormalizedText = totalText
+    //   .normalize("NFD")
+    //   .replace(/[\u0300-\u036f]/g, "");
 
     const pdfURL = await createAndUploadPDF(normalizedText, id, "contenido");
-    const pdfURLTotal = await createAndUploadPDF(
-      totalNormalizedText,
-      id,
-      "total"
-    );
+    // const pdfURLTotal = await createAndUploadPDF(
+    //   totalNormalizedText,
+    //   id,
+    //   "total"
+    // );
 
     console.log("juntar textos")
 
@@ -699,15 +690,14 @@ const attachedFiles = async (req, res, next) => {
       const query = `
         UPDATE file 
         SET content = $1,
-        total_content = $2,
+       
         have_files = true
-        WHERE id = $3
+        WHERE id = $2
         RETURNING *;
       `;
 
       const dbResult = await pool.query(query, [
         pdfURL.toString(),
-        pdfURLTotal.toString(),
         id,
       ]);
       console.log("contenido guardado")
@@ -728,6 +718,79 @@ const attachedFiles = async (req, res, next) => {
   }
 };
 
+const juntarTextos= (req, res) => {
+  const id = req.params.id;
+  const transcriptPdf = `transcripts/${id}.pdf`;
+  const contenidoPdf = `contenido/${id}.pdf`;
+
+  const s3ParamsTranscript = {
+    Bucket: "voist-records",
+    Key: transcriptPdf,
+  };
+
+  const s3ParamsContenido = {
+    Bucket: "voist-records",
+    Key: contenidoPdf,
+  };
+
+  const s3 = new aws.S3({
+    region,
+    accessKeyId,
+    secretAccessKey,
+  });
+
+  const s3FileTranscript = s3.getObject(s3ParamsTranscript).promise();
+  const s3FileContenido = s3.getObject(s3ParamsContenido).promise();
+
+  Promise.all([s3FileTranscript, s3FileContenido])
+    .then((results) => {
+      const textoTranscript = extraerTextoPDF(results[0]);
+      const textoContenido = extraerTextoPDF(results[1]);
+
+      const totalText = `Texto de los archivos adjuntos o material de clase: ${textoContenido} Texto de la transcripcion: ${textoTranscript}`;
+
+      const totalNormalizedText = totalText
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+      const pdfURLTotal = createAndUploadPDF(
+        totalNormalizedText,
+        id,
+        "total"
+      );
+
+      return pdfURLTotal;
+    })
+    .then((pdfURLTotal) => {
+      const query = `
+        UPDATE file 
+        SET total_content = $1
+        WHERE id = $2
+        RETURNING *;
+      `;
+
+      pool.query(query, [pdfURLTotal.toString(), id])
+        .then((dbResult) => {
+          res.json({
+            message: "Contenido guardado",
+            pdfUrl: pdfURLTotal,
+            dbResult: dbResult.rows,
+          });
+        })
+        .catch((error) => {
+          res.status(500).json({
+            error: "Error al actualizar la base de datos",
+            errorMessage: error.message,
+          });
+        });
+    })
+    .catch((error) => {
+      console.error("Error al procesar archivos:", error);
+      res.status(500).json({ error: "Error al procesar archivos" });
+    });
+
+}
+
 module.exports = {
   getAllFiles,
   getFile,
@@ -744,4 +807,5 @@ module.exports = {
   getFilesPerMonth,
   countFiles,
   attachedFiles,
+  juntarTextos
 };

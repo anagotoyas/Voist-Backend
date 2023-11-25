@@ -17,7 +17,8 @@ const {
   createSummary,
   getFilesPerMonth,
   countFiles,
-  attachedFiles
+  attachedFiles,
+  juntarTextos
 } = require("../controllers/file.controller");
 const {
   createFileSchema,
@@ -68,6 +69,9 @@ router.post("/createSummary", createSummary);
 router.get("/files-month", getFilesPerMonth);
 
 router.get("/files-count", countFiles); 
+
+router.get("/juntar-textos/:id", juntarTextos); 
+
 
 
 module.exports = router;
