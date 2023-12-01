@@ -9,6 +9,7 @@ const folderRoutes = require("./routes/folder.routes");
 const contactRoutes = require("./routes/contact.routes");
 const sharedFileRoutes = require("./routes/shared_file.routes");
 const conversationRoutes = require("./routes/conversation.routes");
+const attachedRoutes = require("./routes/attached_file.routes");
 const cors = require("cors");
 const bodyParser = require('body-parser');
 const { handleConnection, handleDisconnect } = require('./websocket');
@@ -61,6 +62,7 @@ app.use('/api', folderRoutes);
 app.use('/api', contactRoutes);
 app.use('/api', sharedFileRoutes);
 app.use('/api', conversationRoutes);
+app.use('/api', attachedRoutes);
 
 // Configuración de opciones preflight
 app.options('*', cors(corsOptions));

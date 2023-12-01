@@ -95,4 +95,8 @@ ALTER TABLE file DROP COLUMN people_access;
 alter table file add column summary_files TEXT 
 
 
+alter table attached_file add column file_name  TEXT 
+
+
+
 

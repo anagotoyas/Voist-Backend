@@ -261,38 +261,28 @@ const saveAudioFile = (req, res) => {
   const fileName = `${id}.wav`;
   const filePath = path.join(archivosDir, fileName);
 
-  const s3 = new aws.S3({
-    region,
-    accessKeyId,
-    secretAccessKey,
-  });
+  // const s3 = new aws.S3({
+  //   region,
+  //   accessKeyId,
+  //   secretAccessKey,
+  // });
 
   const recordfileName = `audio/${id}.wav`;
 
-  const params = {
-    Bucket: "voist-records",
-    Key: recordfileName,
-    Body: audioBuffer,
-  };
+  // const params = {
+  //   Bucket: "voist-records",
+  //   Key: recordfileName,
+  //   Body: audioBuffer,
+  // };
 
   fs.writeFile(filePath, audioBuffer, (err) => {
     if (err) {
       console.log("error al guardar el archivo: " + err);
       res.status(500).send("Error al guardar el archivo WAV");
     } else {
-      s3.upload(params, (err, data) => {
-        if (err) {
-          console.error("Error al subir el archivo a S3:", err);
-          res.status(500).send("Error al guardar el archivo en S3");
-        } else {
-          const wavURL = data.Location;
-          
-
-          fromFile(filePath, res, id, formattedDuration, wavURL);
+      fromFile(filePath, res, id, formattedDuration);
           res.status(200).send("Archivo guardado");
-        }
-
-      });
+      // s3.upload(params, async (err, data) => {
     }
   });
 };
@@ -353,7 +343,7 @@ const fromFile = async (
   res,
   idFile,
   durationInSeconds,
-  wavURL
+
 ) => {
   console.log("comienzo fromfile")
   const audioConfig = sdk.AudioConfig.fromWavFileInput(
@@ -406,6 +396,7 @@ const fromFile = async (
     console.log("\n    Session stopped event.");
     console.log("\n    Stop recognition.");
     // console.log("Texto reconocido: " + recognizedText);
+    console.log("Comenzando a crear el PDF")
     try {
       const pdfURL = await createAndUploadPDF(
         recognizedText,
@@ -413,17 +404,18 @@ const fromFile = async (
         "transcripts"
       );
 
+      console.log(pdfURL.toString());
+
       const query = `
           UPDATE file 
-          SET transcript = $1, duration = $2, file_path = $3
-          WHERE id = $4
+          SET transcript = $1, duration = $2
+          WHERE id = $3
           RETURNING *
         `;
 
       await pool.query(query, [
         pdfURL.toString(),
         durationInSeconds,
-        wavURL.toString(),
         idFile,
       ]);
 
@@ -454,30 +446,59 @@ const fromFile = async (
 };
 
 const createAndUploadPDF = async (content, id, bucket) => {
-  console.log("comienzo createAndUploadPDF")
-  const pageWidth = 595;
-  const pageHeight = 842;
+  try {
+    console.log("comienzo createAndUploadPDF");
+    // console.log(content);
+    console.log(id);
+    console.log(bucket);
 
-  const lineHeight = 20;
+    const normalizedText = content
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
 
-  const pdfDoc = await PDFDocument.create();
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const pageWidth = 595;
+    const pageHeight = 842;
 
-  const margin = 50;
-  let currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
-  let y = pageHeight - margin;
+    const lineHeight = 20;
 
-  const paragraphs = content.split(/\n+/);
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-  for (const paragraph of paragraphs) {
-    const words = paragraph.split(/\s+/);
-    let line = "";
+    const margin = 50;
+    let currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
+    let y = pageHeight - margin;
 
-    for (const word of words) {
-      const currentLine = line + (line ? " " : "") + word;
-      const textSize = font.widthOfTextAtSize(currentLine, 12);
+    const paragraphs = normalizedText.split(/\n+/);
 
-      if (textSize > pageWidth - 2 * margin) {
+    for (const paragraph of paragraphs) {
+      const words = paragraph.split(/\s+/);
+      let line = "";
+
+      for (const word of words) {
+        const currentLine = line + (line ? " " : "") + word;
+        const textSize = font.widthOfTextAtSize(currentLine, 12);
+
+        if (textSize > pageWidth - 2 * margin) {
+          currentPage.drawText(line, {
+            x: margin,
+            y,
+            size: 12,
+            color: rgb(0, 0, 0),
+          });
+          y -= lineHeight;
+
+          if (y - lineHeight < margin) {
+            currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
+            y = pageHeight - margin;
+          }
+
+          line = word;
+        } else {
+          line = currentLine;
+        }
+      }
+
+      if (line) {
         currentPage.drawText(line, {
           x: margin,
           y,
@@ -490,54 +511,46 @@ const createAndUploadPDF = async (content, id, bucket) => {
           currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
           y = pageHeight - margin;
         }
-
-        line = word;
-      } else {
-        line = currentLine;
       }
     }
 
-    if (line) {
-      currentPage.drawText(line, {
-        x: margin,
-        y,
-        size: 12,
-        color: rgb(0, 0, 0),
-      });
-      y -= lineHeight;
+    const fileName = `${bucket}/${id}.pdf`;
 
-      if (y - lineHeight < margin) {
-        currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
-        y = pageHeight - margin;
-      }
-    }
-  }
+    const pdfBytes = await pdfDoc.save();
 
-  const fileName = `${bucket}/${id}.pdf`;
+    const s3 = new aws.S3({
+      region,
+      accessKeyId,
+      secretAccessKey,
+    });
 
-  const pdfBytes = await pdfDoc.save();
+    const params = {
+      Bucket: "voist-records", // replace with your S3 bucket name
+      Key: fileName,
+      Body: pdfBytes,
+      ContentType: "application/pdf",
+    };
 
-  const s3 = new aws.S3({
-    region,
-    accessKeyId,
-    secretAccessKey,
-  });
+    console.log("termino createAndUploadPDF");
 
-  const params = {
-    Bucket: "voist-records",
-    Key: fileName,
-    Body: pdfBytes,
-    ContentType: "application/pdf",
-  };
-
-  try {
-    console.log("termino createAndUploadPDF")
     const result = await s3.upload(params).promise();
     return result.Location;
   } catch (error) {
     console.error("Error al subir el PDF a S3:", error);
+
+    // Log the stack trace for better debugging
+    console.error(error.stack);
+
+    // You can rethrow the error if you want it to be caught by higher-level error handling
+    // throw error;
+
+    // Or you can return a custom error response or value, depending on your use case
+    return null;
   }
 };
+
+
+
 
 const createSummary = async (req, res, next) => {
   const { content, id, bucket, atributo } = req.body;
@@ -635,6 +648,12 @@ const attachedFiles = async (req, res, next) => {
     await Promise.all(
       req.files.map(async (file, index) => {
         const fileName = `archivos/${file.originalname}`;
+
+        const nombreArchivo = file.originalname;
+        
+
+
+        
         const params = {
           Bucket: "voist-records",
           Key: fileName,
@@ -655,8 +674,8 @@ const attachedFiles = async (req, res, next) => {
         const textoPDF = await extraerTextoPDF(s3File);
         contenido_archivos += `Archivo ${index + 1}: ${textoPDF}\n`;
 
-        const insertQuery = `INSERT INTO attached_file (file_id, link) VALUES ($1, $2)`;
-        await pool.query(insertQuery, [id, result.Location]);
+        const insertQuery = `INSERT INTO attached_file (file_id, link, file_name) VALUES ($1, $2, $3)`;
+        await pool.query(insertQuery, [id, result.Location, nombreArchivo]);
       })
     );
     console.log("attached files creados")
