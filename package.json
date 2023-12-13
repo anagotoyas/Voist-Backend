@@ -4,29 +4,22 @@
   "description": "",
   "dependencies": {
     "aws-sdk": "^2.1478.0",
-    "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",
-    "buffer": "^6.0.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "date-fns": "^2.30.0",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "file-type": "^18.5.0",
-    "fontkit": "^2.0.2",
-    "fs": "^0.0.1-security",
     "jsonwebtoken": "^9.0.2",
     "md5": "^2.3.0",
     "microsoft-cognitiveservices-speech-sdk": "^1.32.0",
     "multer": "^1.4.5-lts.1",
-    "path": "^0.12.7",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
     "pdfreader": "^3.0.2",
     "pg": "^8.11.3",
     "serverless-http": "^3.1.1",
     "socket.io": "^4.7.2",
-    "wav": "^1.0.2",
     "wavefile": "^11.0.0",
     "zod": ">=3.22.3"
   },
@@ -36,7 +29,6 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
-    "eslint": "^8.51.0",
     "nodemon": "^3.0.1"
   }
 }

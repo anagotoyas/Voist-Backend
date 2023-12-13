@@ -49,16 +49,19 @@ const getFile = async (req, res) => {
 
 const createFile = async (req, res, next) => {
   const { title } = req.body;
+  const only_files = req.body.only_files;
   const idFolder = req.body.idFolder;
 
   const folderValue =
     idFolder === null || idFolder === undefined ? null : idFolder;
 
+  const onlyFilesValue = only_files === null || only_files === undefined ? false : only_files;
+
   //db insert
   try {
     const result = await pool.query(
-      " INSERT INTO file (title, user_id, folder_id) VALUES ($1, $2, $3) RETURNING *",
-      [title, req.userId, folderValue]
+      " INSERT INTO file (title, user_id, folder_id, only_files) VALUES ($1, $2, $3, $4) RETURNING *",
+      [title, req.userId, folderValue,onlyFilesValue]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -267,7 +270,7 @@ const saveAudioFile = (req, res) => {
   //   secretAccessKey,
   // });
 
-  const recordfileName = `audio/${id}.wav`;
+  // const recordfileName = `audio/${id}.wav`;
 
   // const params = {
   //   Bucket: "voist-records",
@@ -275,82 +278,21 @@ const saveAudioFile = (req, res) => {
   //   Body: audioBuffer,
   // };
 
-  fs.writeFile(filePath, audioBuffer, (err) => {
+  fs.writeFile(filePath, audioBuffer, async (err) => {
     if (err) {
       console.log("error al guardar el archivo: " + err);
       res.status(500).send("Error al guardar el archivo WAV");
     } else {
-      fromFile(filePath, res, id, formattedDuration);
-          res.status(200).send("Archivo guardado");
-      // s3.upload(params, async (err, data) => {
+      await fromFile(filePath, res, id, formattedDuration);
     }
   });
 };
 
-// function speechRecognizeContinuousFromFile(audioFilePath) {
-
-//   const audioConfig = sdk.AudioConfig.fromWavFileInput(fs.readFileSync(audioFilePath));
-//   console.log(audioFilePath)
-//   console.log(audioConfig)
-//   const speechConfig = sdk.SpeechConfig.fromSubscription('40f160f190fa418d82711ac6df2ab6ec', 'eastus');
-//   speechConfig.speechRecognitionLanguage = "es-ES";
-//   const recognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
-
-//   console.log('vamonos')
-
-//   let recognizedText = '';
-
-//   recognizer.recognizing = (s, e) => {
-//     console.log(`RECOGNIZING: ${e.result.text}`);
-//   };
-
-//   recognizer.recognized = (s, e) => {
-//     if (e.result.reason === sdk.ResultReason.RecognizedSpeech) {
-//       recognizedText += e.result.text + ' ';
-//       console.log(`RECOGNIZED: ${e.result.text}`);
-//     } else if (e.result.reason === sdk.ResultReason.NoMatch) {
-//       console.log("No se encontró ninguna coincidencia.");
-//     }
-//   };
-
-//   recognizer.canceled = (s, e) => {
-//     console.log(`CANCELED: Reason=${e.reason}`);
-
-//     if (e.reason === sdk.CancellationReason.Error) {
-//       console.log(`CANCELED: ErrorCode=${e.errorCode}`);
-//       console.log(`CANCELED: ErrorDetails=${e.errorDetails}`);
-//     }
-
-//     recognizer.stopContinuousRecognitionAsync(() => {
-//       console.log('Fin de la transcripcion')
-//       // Imprime el texto reconocido después de detener la transcripción
-//       console.log("Texto reconocido: " + recognizedText);
-//     });
-//   };
-
-//   recognizer.startContinuousRecognitionAsync();
-
-//   console.log("Reconocimiento de voz continuo iniciado. Presiona Ctrl+C para detener.");
-
-//   // Mantén la aplicación en funcionamiento
-//   process.stdin.resume();
-// }
-
-// speechRecognizeContinuousFromFile('records/audio-youtube.wav');
-
-const fromFile = async (
-  wavFilePath,
-  res,
-  idFile,
-  durationInSeconds,
-
-) => {
-  console.log("comienzo fromfile")
+const fromFile = async (wavFilePath, res, idFile, durationInSeconds) => {
+  console.log("comienzo fromfile");
   const audioConfig = sdk.AudioConfig.fromWavFileInput(
     fs.readFileSync(wavFilePath)
   );
-  console.log(wavFilePath);
-  // console.log(audioConfig);
 
   const speechConfig = sdk.SpeechConfig.fromSubscription(azureKey, azureRegion);
   speechConfig.speechRecognitionLanguage = "es-ES";
@@ -396,7 +338,14 @@ const fromFile = async (
     console.log("\n    Session stopped event.");
     console.log("\n    Stop recognition.");
     // console.log("Texto reconocido: " + recognizedText);
-    console.log("Comenzando a crear el PDF")
+    console.log("Comenzando a crear el PDF");
+
+    const result = {
+      success: false,
+      message: "",
+      pdfURL: null,
+    };
+
     try {
       const pdfURL = await createAndUploadPDF(
         recognizedText,
@@ -413,28 +362,21 @@ const fromFile = async (
           RETURNING *
         `;
 
-      await pool.query(query, [
-        pdfURL.toString(),
-        durationInSeconds,
-        idFile,
-      ]);
+      await pool.query(query, [pdfURL.toString(), durationInSeconds, idFile]);
 
       fs.unlink(wavFilePath, (err) => {
         console.log(wavFilePath);
         if (err) {
           console.error(`Error al eliminar el archivo: ${err}`);
         } else {
-          console.log(pdfURL);
+          result.success = true;
+          result.message = "Transcripción actualizada";
+          result.pdfURL = pdfURL;
 
-          console.log(`Archivo eliminado: ${wavFilePath}`);
+          console.log("termino fromfile");
+
+          res.status(200).json(result);
         }
-      });
-
-      console.log("termino fromfile")
-
-      res.status(200).json({
-        message: "Transcripción actualizada",
-        transcriptPdf: pdfURL,
       });
     } catch (error) {
       res.status(500);
@@ -549,9 +491,6 @@ const createAndUploadPDF = async (content, id, bucket) => {
   }
 };
 
-
-
-
 const createSummary = async (req, res, next) => {
   const { content, id, bucket, atributo } = req.body;
   const pdfURL = await createAndUploadPDF(content, id, bucket);
@@ -632,7 +571,7 @@ const extraerTextoPDF = async (s3File) => {
 };
 
 const attachedFiles = async (req, res, next) => {
-  console.log("comienzo attachedFiles")
+  console.log("comienzo attachedFiles");
   const id = req.params.id;
 
   const enlacesArchivos = [];
@@ -650,10 +589,7 @@ const attachedFiles = async (req, res, next) => {
         const fileName = `archivos/${file.originalname}`;
 
         const nombreArchivo = file.originalname;
-        
 
-
-        
         const params = {
           Bucket: "voist-records",
           Key: fileName,
@@ -661,7 +597,7 @@ const attachedFiles = async (req, res, next) => {
           ContentType: "application/pdf",
         };
 
-        const result = await s3.upload(params).promise();
+        const result = await s3.upload(params).promise(); 
         enlacesArchivos.push(result.Location);
 
         const s3Params = {
@@ -678,7 +614,7 @@ const attachedFiles = async (req, res, next) => {
         await pool.query(insertQuery, [id, result.Location, nombreArchivo]);
       })
     );
-    console.log("attached files creados")
+    console.log("attached files creados");
 
     const normalizedText = contenido_archivos
       .normalize("NFD")
@@ -707,7 +643,7 @@ const attachedFiles = async (req, res, next) => {
     //   "total"
     // );
 
-    console.log("juntar textos")
+    console.log("juntar textos");
 
     try {
       const query = `
@@ -719,11 +655,8 @@ const attachedFiles = async (req, res, next) => {
         RETURNING *;
       `;
 
-      const dbResult = await pool.query(query, [
-        pdfURL.toString(),
-        id,
-      ]);
-      console.log("contenido guardado")
+      const dbResult = await pool.query(query, [pdfURL.toString(), id]);
+      console.log("contenido guardado");
       res.json({
         message: "Contenido guardado",
         pdfUrl: pdfURL,
@@ -779,11 +712,7 @@ const juntarTextos = (req, res) => {
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "");
 
-      const pdfURLTotal = createAndUploadPDF(
-        totalNormalizedText,
-        id,
-        "total"
-      );
+      const pdfURLTotal = createAndUploadPDF(totalNormalizedText, id, "total");
 
       return pdfURLTotal;
     })
@@ -795,7 +724,8 @@ const juntarTextos = (req, res) => {
         RETURNING *;
       `;
 
-      pool.query(query, [pdfURLTotal.toString(), id])
+      pool
+        .query(query, [pdfURLTotal.toString(), id])
         .then((dbResult) => {
           res.json({
             message: "Contenido guardado",
@@ -816,7 +746,6 @@ const juntarTextos = (req, res) => {
     });
 };
 
-
 module.exports = {
   getAllFiles,
   getFile,
@@ -833,5 +762,5 @@ module.exports = {
   getFilesPerMonth,
   countFiles,
   attachedFiles,
-  juntarTextos
+  juntarTextos,
 };
